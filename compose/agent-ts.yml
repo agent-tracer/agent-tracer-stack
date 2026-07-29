@@ -22,8 +22,19 @@ x-agent-depends: &agent-depends
   opensearch: { condition: service_healthy }
   temporal: { condition: service_started }
   migrate: { condition: service_completed_successfully }
+  agent-schema: { condition: service_completed_successfully }
 
 services:
+  # 계약이 선언한 에이전트 스키마를 적용하고 끝나는 원샷이다.
+  agent-schema:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-api && exec node --import @swc-node/register/esm-register src/agent.schema.ts"]
+    environment: *agent-env
+    restart: "no"
+    depends_on:
+      tracer-db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
   agent-api:
     image: ${TRACER_AGENT_TS_IMAGE}
     environment:

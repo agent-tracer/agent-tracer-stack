@@ -29,8 +29,25 @@ x-agent-depends: &agent-depends
   opensearch: { condition: service_healthy }
   temporal: { condition: service_started }
   migrate: { condition: service_completed_successfully }
+  agent-schema: { condition: service_completed_successfully }
 
 services:
+  # 계약이 선언한 에이전트 스키마를 적용하고 끝나는 원샷이며, DDL 러너를 가진 구현체가 하나뿐이라
+  # 어느 축을 올리든 그 이미지를 쓴다.
+  agent-schema:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-api && exec node --import @swc-node/register/esm-register src/agent.schema.ts"]
+    environment:
+      AGENT_DB_HOST: tracer-db
+      AGENT_DB_PORT: "5432"
+      AGENT_DB_NAME: tracer
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+    restart: "no"
+    depends_on:
+      tracer-db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
   agent-api:
     image: ${TRACER_AGENT_PYTHON_IMAGE}
     environment:
