@@ -1,0 +1,14 @@
+# 배포에 올라가는 이미지와 태그를 이 파일 하나가 고정한다.
+# compose 파일은 이 값을 환경변수로 받아 쓰고 태그를 스스로 적지 않는다.
+
+AGENT_TRACER_EVENT_DB_IMAGE=agent-tracer/event-db:latest
+AGENT_TRACER_CONNECT_INIT_IMAGE=agent-tracer/connect-init:latest
+AGENT_TRACER_MIGRATE_IMAGE=agent-tracer/migrate:latest
+AGENT_TRACER_INGEST_API_IMAGE=agent-tracer/ingest-api:latest
+AGENT_TRACER_TRACER_API_IMAGE=agent-tracer/tracer-api:latest
+AGENT_TRACER_WEB_IMAGE=agent-tracer/web:latest
+AGENT_TRACER_GATEWAY_IMAGE=agent-tracer/gateway:latest
+
+TRACER_AGENT_TS_IMAGE=tracer-agent-ts:latest
+TRACER_AGENT_PYTHON_IMAGE=tracer-agent-python:latest
+TRACER_AGENT_WEB_IMAGE=tracer-agent-web:latest
