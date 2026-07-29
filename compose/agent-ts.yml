@@ -1,0 +1,60 @@
+name: agent-tracer
+
+# 실행 원장은 아직 tracer-db 안에 살고 조회 모델 표와 데이터베이스를 나눠 갖는다.
+x-agent-env: &agent-env
+  NODE_ENV: production
+  MONITOR_PROFILE: prd
+  MONITOR_LISTEN_HOST: 0.0.0.0
+  AGENT_DB_HOST: tracer-db
+  AGENT_DB_PORT: "5432"
+  AGENT_DB_NAME: tracer
+  POSTGRES_USER: ${POSTGRES_USER:-root}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+  KAFKA_BROKERS: redpanda:29092
+  OPENSEARCH_NODE: http://opensearch:9200
+  TEMPORAL_ADDRESS: temporal:7233
+  # 단가표도 한도도 자격도 이 서비스가 갖지 않으므로 시도마다 봉투를 여기서 받아 온다.
+  TRACER_API_URL: http://tracer-api:3902
+
+x-agent-depends: &agent-depends
+  tracer-db: { condition: service_healthy }
+  redpanda: { condition: service_healthy }
+  opensearch: { condition: service_healthy }
+  temporal: { condition: service_started }
+  migrate: { condition: service_completed_successfully }
+
+services:
+  agent-api:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    environment:
+      <<: *agent-env
+      AGENT_API_PORT: "3904"
+    depends_on: *agent-depends
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3904/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+      start_interval: 1s
+
+  # 대화 실행의 재시도와 취소와 순서를 소유하며 sdk-chat 큐만 폴링한다.
+  agent-chat-worker:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/chat.main.ts"]
+    environment: *agent-env
+    depends_on: *agent-depends
+
+  # 제목 제안과 레시피 스캔과 정리 제안의 워크플로를 돌며 sdk-jobs 큐만 폴링한다.
+  agent-jobs-worker:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/jobs.main.ts"]
+    environment: *agent-env
+    depends_on: *agent-depends
+
+  # 긴 언어 모델 호출만 도는 파드이며 sdk-generate 큐만 폴링해 replica를 따로 늘린다.
+  agent-generate-worker:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/generate.main.ts"]
+    environment: *agent-env
+    depends_on: *agent-depends
