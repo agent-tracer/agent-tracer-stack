@@ -1,0 +1,2 @@
+# 에이전트 접수구가 하나만 뜨므로 backend 파라미터를 무엇으로 주든 그리로 간다.
+default http://agent-api:3904;
