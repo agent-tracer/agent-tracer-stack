@@ -1,0 +1,38 @@
+name: agent-tracer
+
+# 두 구현체가 함께 쓰는 오케스트레이션 기반이며 어느 축을 올리든 먼저 선다.
+services:
+  temporal-db:
+    image: postgres:17-alpine
+    environment: { POSTGRES_USER: temporal, POSTGRES_PASSWORD: temporal }
+    volumes: [temporal-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+      start_interval: 1s
+
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    depends_on:
+      temporal-db: { condition: service_healthy }
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-db
+    ports: ["${TEMPORAL_PUBLISHED_PORT:-7233}:7233"]
+
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    depends_on: [temporal]
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:8233
+    ports: ["${TEMPORAL_UI_PUBLISHED_PORT:-8233}:8080"]
+
+volumes:
+  temporal-db-data:
