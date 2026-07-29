@@ -1,0 +1,196 @@
+name: agent-tracer
+
+x-app-env: &app-env
+  NODE_ENV: production
+  MONITOR_PROFILE: prd
+  MONITOR_SETTINGS_ENCRYPTION_KEY: ${MONITOR_SETTINGS_ENCRYPTION_KEY:-monitor-dev-key}
+  MONITOR_LISTEN_HOST: 0.0.0.0
+  EVENT_DB_HOST: event-db
+  EVENT_DB_PORT: "5432"
+  TRACER_DB_HOST: tracer-db
+  TRACER_DB_PORT: "5432"
+  POSTGRES_USER: ${POSTGRES_USER:-root}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+  KAFKA_BROKERS: redpanda:29092
+  OPENSEARCH_NODE: http://opensearch:9200
+
+services:
+  # ---- 데이터 저장소 ----
+  event-db:
+    image: ${AGENT_TRACER_EVENT_DB_IMAGE}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: runtime
+    command: ["postgres", "-c", "wal_level=logical"]
+    ports: ["${EVENT_DB_PUBLISHED_PORT:-5432}:5432"]
+    volumes: [event-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root} -d runtime"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+      start_interval: 1s
+
+  tracer-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: tracer
+    ports: ["${TRACER_DB_PUBLISHED_PORT:-5433}:5432"]
+    volumes: [tracer-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root} -d tracer"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+      start_interval: 1s
+
+  adminer:
+    image: adminer:4
+    environment:
+      ADMINER_DEFAULT_SERVER: tracer-db
+      ADMINER_DESIGN: nette
+      ADMINER_PLUGINS: "tables-filter tinymce"
+    ports: ["${ADMINER_PUBLISHED_PORT:-8081}:8080"]
+    depends_on:
+      event-db: { condition: service_healthy }
+      tracer-db: { condition: service_healthy }
+
+  # ---- 이벤트 브로커 ----
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda start --smp 1 --overprovisioned --node-id 0
+        --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+        --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:19092
+    ports: ["${REDPANDA_PUBLISHED_PORT:-19092}:9092"]
+    volumes: [redpanda-data:/var/lib/redpanda/data]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health --exit-when-healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+      start_interval: 1s
+
+  redpanda-init:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    depends_on:
+      redpanda: { condition: service_healthy }
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rpk topic create ingest.events -p 6 -r 1 --brokers redpanda:29092 || true
+        rpk topic create notifications -p 3 -r 1 --brokers redpanda:29092 || true
+
+  connect:
+    image: debezium/connect:2.7.3.Final
+    depends_on:
+      redpanda: { condition: service_healthy }
+      event-db: { condition: service_healthy }
+    environment:
+      BOOTSTRAP_SERVERS: redpanda:29092
+      GROUP_ID: connect-cluster
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    ports: ["${CONNECT_PUBLISHED_PORT:-8083}:8083"]
+
+  # 커넥터 선언은 추적 저장소가 소유하며 이 원샷이 그 이미지를 그대로 실행한다.
+  connect-init:
+    image: ${AGENT_TRACER_CONNECT_INIT_IMAGE}
+    restart: "no"
+    depends_on:
+      connect: { condition: service_started }
+
+  opensearch:
+    image: opensearchproject/opensearch:2.17.1
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: Monitor!Local1
+    ports: ["${OPENSEARCH_PUBLISHED_PORT:-9200}:9200"]
+    volumes: [opensearch-data:/usr/share/opensearch/data]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+      start_interval: 2s
+
+  # ---- 애플리케이션 ----
+  # 스키마 이행이 끝나야 앱이 뜨는 원샷 컨테이너이며, 앱은 검사만 하고 직접 실행하지 않는다.
+  migrate:
+    image: ${AGENT_TRACER_MIGRATE_IMAGE}
+    environment: *app-env
+    restart: "no"
+    depends_on:
+      event-db: { condition: service_healthy }
+      tracer-db: { condition: service_healthy }
+
+  ingest-api:
+    image: ${AGENT_TRACER_INGEST_API_IMAGE}
+    environment: *app-env
+    depends_on:
+      event-db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3901/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+      start_interval: 1s
+
+  tracer-api:
+    image: ${AGENT_TRACER_TRACER_API_IMAGE}
+    environment: *app-env
+    depends_on:
+      tracer-db: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+      opensearch: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3902/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+      start_interval: 1s
+
+  # 조회 창구와 같은 이미지를 명령만 달리해 띄우므로 두 파드의 replica를 따로 늘릴 수 있다.
+  projector:
+    image: ${AGENT_TRACER_TRACER_API_IMAGE}
+    command: ["node", "--import", "file:///app/scripts/register-otel.mjs", "--import", "@swc-node/register/esm-register", "services/tracer-api/src/projector.main.ts"]
+    environment: *app-env
+    depends_on:
+      tracer-db: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+      opensearch: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  tracer-web:
+    image: ${AGENT_TRACER_WEB_IMAGE}
+
+  gateway:
+    image: ${AGENT_TRACER_GATEWAY_IMAGE}
+    volumes:
+      - ../gateway/upstreams.d:/etc/nginx/upstreams.d:ro
+    ports: ["${GATEWAY_PUBLISHED_PORT:-127.0.0.1:3847}:3847"]
+    depends_on: [ingest-api, tracer-api, tracer-web]
+
+volumes:
+  event-db-data:
+  tracer-db-data:
+  redpanda-data:
+  opensearch-data:
