@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: agent-tracer
+    orgId: 1
+    folder: "Agent Tracer"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

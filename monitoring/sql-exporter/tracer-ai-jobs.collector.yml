@@ -1,0 +1,51 @@
+collector_name: tracer_ai_jobs
+
+metrics:
+  # 식별자는 라벨로 내보내지 않는다. 종류·상태·실행기·백엔드만 운영 차원으로 유지한다.
+  - metric_name: ai_jobs_status_count
+    type: gauge
+    help: "pending 또는 running AI 잡 수를 저카디널리티 실행 차원으로 집계한다."
+    key_labels: [kind, status, executor, backend]
+    values: [job_count]
+    query: |
+      SELECT
+        kind,
+        status,
+        executor,
+        COALESCE(NULLIF(input ->> 'agentBackend', ''), 'local') AS backend,
+        COUNT(*) AS job_count
+      FROM ai_jobs
+      WHERE status IN ('pending', 'running')
+      GROUP BY kind, status, executor, backend
+
+  - metric_name: ai_jobs_oldest_active_age_seconds
+    type: gauge
+    help: "pending 또는 running 상태에서 가장 오래 머문 AI 잡의 경과 초."
+    key_labels: [kind, status, executor, backend]
+    values: [age_seconds]
+    query: |
+      SELECT
+        kind,
+        status,
+        executor,
+        COALESCE(NULLIF(input ->> 'agentBackend', ''), 'local') AS backend,
+        EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MIN(COALESCE(started_at, created_at)))) AS age_seconds
+      FROM ai_jobs
+      WHERE status IN ('pending', 'running')
+      GROUP BY kind, status, executor, backend
+
+  - metric_name: ai_jobs_attempts_sum
+    type: gauge
+    help: "활성 AI 잡의 누적 실행 시도 수를 종류와 상태별로 집계한다."
+    key_labels: [kind, status, executor, backend]
+    values: [attempts_sum]
+    query: |
+      SELECT
+        kind,
+        status,
+        executor,
+        COALESCE(NULLIF(input ->> 'agentBackend', ''), 'local') AS backend,
+        COALESCE(SUM(attempts), 0) AS attempts_sum
+      FROM ai_jobs
+      WHERE status IN ('pending', 'running')
+      GROUP BY kind, status, executor, backend

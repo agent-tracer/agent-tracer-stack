@@ -1,0 +1,103 @@
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_log_stream"]
+		target_label  = "stream"
+	}
+
+	// 컨테이너 번호가 바뀌어도 같은 서비스 로그가 한 선택자로 유지된다.
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service_name"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+		target_label  = "compose_project"
+	}
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.docker.containers.targets
+	labels        = {"job" = "docker"}
+	relabel_rules = discovery.relabel.containers.rules
+	forward_to    = [loki.process.containers.receiver]
+}
+
+loki.process "containers" {
+	// Temporal SDK 등 ANSI 로그도 검색과 level 판별이 가능하게 평문으로 만든다.
+	stage.decolorize { }
+
+	// Loki 단일 entry 제한보다 여유 있게 잘라 초대형 한 줄이 같은 batch 전체를 폐기하지 않게 한다.
+	stage.truncate {
+		rule {
+			limit  = "240KiB"
+			suffix = "... [truncated]"
+		}
+	}
+
+	// JSON 로그는 level과 trace 상관키만 추출한다. 식별자는 index label로 만들지 않는다.
+	stage.json {
+		expressions = {
+			level    = "level",
+			trace_id = "trace_id",
+			span_id  = "span_id",
+		}
+	}
+
+	// JSON level을 우선하고, 평문 로그에서는 제한된 표준 severity만 찾아 cardinality를 고정한다.
+	stage.regex {
+		expression = "(?i)^(?P<json_level>trace|debug|info|warn(?:ing)?|error|critical|fatal)$"
+		source     = "level"
+	}
+
+	stage.regex {
+		expression = "(?i)\\b(?P<line_level>trace|debug|info|warn(?:ing)?|error|critical|fatal)\\b"
+	}
+
+	stage.template {
+		source   = "detected_level"
+		template = "{{- if .json_level -}}{{ ToLower .json_level }}{{- else if .line_level -}}{{ ToLower .line_level }}{{- else -}}unknown{{- end -}}"
+	}
+
+	stage.template {
+		source   = "detected_level"
+		template = "{{- if eq .Value \"warning\" -}}warn{{- else -}}{{ .Value }}{{- end -}}"
+	}
+
+	stage.labels {
+		values = {detected_level = ""}
+	}
+
+	stage.structured_metadata {
+		values = {
+			trace_id = "",
+			span_id  = "",
+		}
+	}
+
+	forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}

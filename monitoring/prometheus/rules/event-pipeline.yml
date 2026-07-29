@@ -1,0 +1,60 @@
+groups:
+  - name: event-pipeline
+    rules:
+      - alert: LedgerCdcLagHigh
+        expr: debezium_metrics_MilliSecondsBehindSource > 30000
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: "Debezium CDC lag > 30s"
+          description: "event-db WAL 변경이 Kafka(ingest.events)로 반영되는 데 {{ $value }}ms 지연 중."
+
+      - alert: LedgerApplyGap
+        expr: (scalar(runtime_ledger_max_seq) - pipeline_applied_seq) > 0
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "projector({{ $labels.consumer }})가 원장 최신 seq를 따라잡지 못함"
+          description: "원장 max seq 대비 {{ $value }}건 미반영. Kafka lag이 0인데 이 값이 줄지 않으면 유실을 의심한다."
+
+      - alert: PipelineApplyLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le, consumer) (rate(pipeline_apply_latency_seconds_bucket[5m]))) > 5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.consumer }} 파이프라인 적용 지연 p95 > 5s"
+          description: "원장 insert(received_at) 시각부터 projector 반영 커밋까지의 e2e 지연."
+
+      - alert: PipelineRecordsSkipped
+        expr: increase(pipeline_records_processed_total{outcome="skipped_unparseable"}[15m]) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.consumer }} 컨슈머가 파싱 불가 레코드를 건너뜀"
+          description: "지난 15분간 {{ $value }}건 스킵. CDC 페이로드 포맷이 드리프트했을 수 있다."
+
+      - alert: ConsumerGroupLagGrowing
+        expr: |
+          kminion_kafka_consumer_group_topic_lag{topic_name="ingest.events"} > 0
+          and on (group_id, topic_name)
+          changes(kminion_kafka_consumer_group_topic_offset_sum{topic_name="ingest.events"}[5m]) == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.group_id }} lag이 있는데 커밋이 멈춤"
+          description: "projector 컨슈머가 정체됐을 수 있다. lag={{ $value }}."
+
+      - alert: KafkaCanaryMessagesLost
+        expr: increase(kminion_end_to_end_messages_lost_total[10m]) > 0
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: "Kafka(Redpanda) E2E 카나리 메시지 유실"
+          description: "kminion이 프로듀스했지만 SLA 내 컨슘되지 않은 메시지가 지난 10분간 {{ $value }}건 발생했다. 브로커 자체의 유실 신호다."
+
+      - alert: KafkaCanaryRoundtripLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(kminion_end_to_end_roundtrip_latency_seconds_bucket[5m]))) > 2
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Kafka(Redpanda) 왕복 지연 p95 > 2s"

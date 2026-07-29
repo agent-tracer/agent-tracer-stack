@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { composeArgs, parseProfile, readVersions } from "./stack.mjs";
 
 const profile = parseProfile(process.argv, "tracer");
+const monitoring = process.argv.includes("--monitoring");
 const versions = readVersions();
 let failed = 0;
 
@@ -21,7 +22,7 @@ for (const [key, reference] of Object.entries(versions)) {
 
 const config = spawnSync(
     "docker",
-    ["compose", ...composeArgs(profile), "config", "-q"],
+    ["compose", ...composeArgs(profile, monitoring), "config", "-q"],
     { encoding: "utf8", env: { ...process.env, ...versions } },
 );
 report(config.status === 0, `프로파일 ${profile}의 합성이 유효하다`);

@@ -1,0 +1,114 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+storage:
+  tsdb:
+    # Tempo의 30분 slack에 전송 여유를 더해 경계 sample도 받되 무제한 역사 재쓰기는 막는다.
+    out_of_order_time_window: 45m
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  - job_name: otlp-app-metrics
+    static_configs:
+      - targets: ["otel-collector:9465"]
+
+  # ingest-api/tracer-api/projector/sdk 워커 셋: OTel auto-instrumentation이
+  # 각 컨테이너 안에서 노출하는 Prometheus 엔드포인트(HTTP/pg/kafkajs RED 지표 + Node 런타임 지표).
+  - job_name: app-services
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["ingest-api:9464"]
+        labels: { service: ingest-api }
+      - targets: ["tracer-api:9464"]
+        labels: { service: tracer-api }
+      - targets: ["projector:9464"]
+        labels: { service: projector }
+      - targets: ["agent-jobs-worker:9464"]
+        labels: { service: agent-jobs-worker }
+      - targets: ["agent-generate-worker:9464"]
+        labels: { service: agent-generate-worker }
+      - targets: ["agent-chat-worker:9464"]
+        labels: { service: agent-chat-worker }
+
+  # 워커 SDK(Rust core)가 노출하는 지표. schedule-to-start 지연·폴러·태스크 슬롯은
+  # 워커만 알고 있어 temporal 서버 스크레이프로는 얻을 수 없다.
+  # agent-chat-worker는 이 지표를 아직 설치하지 않아 이 job의 대상이 아니다.
+  - job_name: temporal-sdk
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["agent-jobs-worker:9466"]
+        labels: { service: agent-jobs-worker }
+      - targets: ["agent-generate-worker:9466"]
+        labels: { service: agent-generate-worker }
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter-event:9187"]
+        labels: { database: runtime }
+      - targets: ["postgres-exporter-tracer:9187"]
+        labels: { database: tracer }
+      - targets: ["postgres-exporter-temporal:9187"]
+        labels: { database: temporal }
+
+  - job_name: redpanda
+    metrics_path: /public_metrics
+    static_configs:
+      - targets: ["redpanda:9644"]
+
+  # 컨슈머 그룹 lag + produce->consume 왕복 카나리.
+  - job_name: kminion
+    static_configs:
+      - targets: ["kminion:8080"]
+
+  - job_name: opensearch
+    static_configs:
+      - targets: ["opensearch-exporter:9114"]
+
+  # jmx_prometheus_javaagent가 connect 컨테이너 안에서 직접 노출한다(별도 프로세스 없음).
+  - job_name: debezium-connect
+    static_configs:
+      - targets: ["connect:5556"]
+
+  # event-db 원장 seq/row 카운트(파이프라인 유실 갭 계산용).
+  - job_name: sql-exporter
+    static_configs:
+      - targets: ["sql-exporter:9399"]
+        labels: { database: runtime }
+      - targets: ["sql-exporter-tracer:9399"]
+        labels: { database: tracer }
+
+  - job_name: temporal
+    static_configs:
+      - targets: ["temporal:9090"]
+
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]

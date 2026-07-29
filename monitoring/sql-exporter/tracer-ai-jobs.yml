@@ -1,0 +1,13 @@
+global:
+  scrape_timeout: 10s
+  min_interval: 30s
+  max_connections: 2
+  max_idle_connections: 2
+
+target:
+  name: tracer_db
+  data_source_name: 'postgresql://monitor:monitor@tracer-db:5432/tracer?sslmode=disable'
+  collectors: [tracer_ai_jobs]
+
+collector_files:
+  - "*.collector.yml"

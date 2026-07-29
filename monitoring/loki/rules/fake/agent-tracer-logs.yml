@@ -1,0 +1,53 @@
+groups:
+  - name: agent-tracer-logs
+    interval: 1m
+    rules:
+      # 메트릭에 대응물이 없어 로그로만 잡히는 신호만 둔다. HTTP 5xx율처럼 메트릭이
+      # 이미 보는 것은 여기서 다시 재지 않는다.
+      - alert: ProjectorRecordPoisoned
+        expr: sum by (service_name) (count_over_time({service_name="projector"} | json | __error__="" | msg="ledger.batch_record.failed" [5m])) > 0
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: "projector가 특정 원장 레코드에서 배치를 되돌리는 중"
+          description: "한 레코드가 배치 전체를 실패시키면 컨슈머가 같은 오프셋을 무한히 재시도한다. 로그의 eventId·kind로 대상을 찾는다."
+
+      - alert: ProjectorConsumerCrashLooping
+        expr: sum by (service_name) (count_over_time({service_name="projector"} | json | __error__="" | msg="kafka.consumer.crashed" [15m])) > 3
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: "projector 컨슈머가 15분 안에 {{ $value }}번 죽음"
+          description: "재시작을 반복하면 투영이 사실상 멈춘다. kafka.consumer.started와 kafka.consumer.resumed의 seq로 어디서 막혔는지 본다."
+
+      - alert: AgentQueryBudgetExhausted
+        expr: sum by (service_name) (count_over_time({service_name="agent-worker"} | json | __error__="" | msg="agent.query.exhausted" [30m])) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "AI 잡이 예산이나 턴 상한에 걸려 중단됨"
+          description: "명세가 정한 상한에서 끊겼다는 뜻이며 결과는 비어 있다. 상한이 낮은지 프롬프트가 늘어졌는지 판단한다."
+
+      - alert: AgentCompletionDropped
+        expr: sum by (service_name) (count_over_time({service_name="agent-worker"} | json | __error__="" | msg=~"completion.inbox.expired|completion.callback.rejected" [15m])) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "값을 치른 LLM 결과가 버려짐"
+          description: "만료된 뒤 도착한 콜백은 잡을 대기 상태로 남긴다. 잡이 pending에 머무는 신고가 함께 오면 이것이 원인이다."
+
+      - alert: SearchOutboxDrainFailing
+        expr: sum by (service_name) (count_over_time({service_name="projector"} | json | __error__="" | msg="search.outbox_drain.failed" [10m])) > 5
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "검색 아웃박스 배출이 10분간 {{ $value }}번 실패"
+          description: "색인이 읽기 모델보다 뒤처진다. 검색 결과가 최신이 아니게 되므로 OpenSearch 상태를 함께 본다."
+
+      - alert: AiActivityAbandoned
+        expr: sum by (service_name) (count_over_time({service_name="agent-worker"} | json | __error__="" | msg="temporal.activity.abandoned" [30m])) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "AI 액티비티가 재시도를 포기함"
+          description: "재시도 불가로 판정돼 잡이 영구 실패했다. 로그의 jobId와 attempt로 어떤 잡이 몇 번째에 포기됐는지 본다."

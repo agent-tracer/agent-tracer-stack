@@ -1,0 +1,50 @@
+groups:
+  - name: ai-jobs
+    rules:
+      - alert: AiJobFailureRateHigh
+        expr: |
+          (
+            sum by (agent_tracer_job_kind, agent_tracer_backend, gen_ai_provider_name) (rate(gen_ai_invoke_agent_duration_count{error_type=~".+"}[15m]))
+            /
+            clamp_min(sum by (agent_tracer_job_kind, agent_tracer_backend, gen_ai_provider_name) (rate(gen_ai_invoke_agent_duration_count[15m])), 0.000001)
+          ) > 0.1
+          and on (agent_tracer_job_kind, agent_tracer_backend, gen_ai_provider_name)
+          sum by (agent_tracer_job_kind, agent_tracer_backend, gen_ai_provider_name) (increase(gen_ai_invoke_agent_duration_count[15m])) >= 5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.agent_tracer_job_kind }} AI 잡 실패율 10% 초과"
+          description: "backend={{ $labels.agent_tracer_backend }}, provider={{ $labels.gen_ai_provider_name }}의 표본 5건 이상에서 실패 비율이 높다."
+
+      - alert: AiJobPendingTooLong
+        expr: ai_jobs_oldest_active_age_seconds{status="pending"} > 300
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.kind }} AI 잡이 5분 넘게 pending"
+          description: "backend={{ $labels.backend }}, executor={{ $labels.executor }}"
+
+      - alert: AiJobRunningTooLong
+        expr: ai_jobs_oldest_active_age_seconds{status="running"} > 1800
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.kind }} AI 잡이 30분 넘게 running"
+          description: "Temporal workflow와 해당 backend 로그·trace를 확인할 것."
+
+      - alert: TemporalWorkerSlotsExhausted
+        expr: |
+          sum by (task_queue, worker_type) (temporal_worker_task_slots_available{job="temporal-sdk"}) == 0
+          and on (task_queue, worker_type)
+          sum by (task_queue, worker_type) (temporal_worker_task_slots_used{job="temporal-sdk"}) > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Temporal {{ $labels.task_queue }} {{ $labels.worker_type }} slot 고갈"
+
+      - alert: GenAiClientErrors
+        expr: sum by (gen_ai_provider_name, error_type) (increase(gen_ai_client_operation_duration_count{error_type=~".+"}[10m])) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.gen_ai_provider_name }} LLM 호출 오류: {{ $labels.error_type }}"

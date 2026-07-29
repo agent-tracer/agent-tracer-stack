@@ -11,6 +11,9 @@ export const PROFILES = {
     python: ["tracer.yml", "agent-infra.yml", "agent-python.yml", "agent-web.yml"],
 };
 
+/** 계측 오버레이는 프로파일 위에 겹친다. */
+const MONITORING = "monitoring.yml";
+
 /** 프로파일마다 게이트웨이가 읽을 상류 선언이 다르다. */
 const UPSTREAMS = { tracer: null, ts: "ts.map", python: "python.map" };
 
@@ -24,12 +27,13 @@ export function readVersions() {
     return Object.fromEntries(entries);
 }
 
-export function composeArgs(profile) {
+export function composeArgs(profile, withMonitoring = false) {
     const files = PROFILES[profile];
     if (files === undefined) {
         throw new Error(`알 수 없는 프로파일이다: ${profile}. 쓸 수 있는 것은 ${Object.keys(PROFILES).join(" · ")}`);
     }
-    return files.flatMap((file) => ["-f", join(root, "compose", file)]);
+    const selected = withMonitoring ? [...files, MONITORING] : files;
+    return selected.flatMap((file) => ["-f", join(root, "compose", file)]);
 }
 
 function clear(directory) {

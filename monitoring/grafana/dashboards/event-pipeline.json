@@ -1,0 +1,136 @@
+{
+  "title": "Event Pipeline",
+  "uid": "event-pipeline",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["agent-tracer", "pipeline"],
+  "panels": [
+    { "type": "row", "title": "Ingest — ingest-api", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 1 },
+    {
+      "id": 2, "type": "timeseries", "title": "Ingest request rate",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 1 },
+      "description": "ingest-api ingest HTTP request rate split by status code. A growing 4xx/5xx share means clients (the local collection daemon) cannot land events.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (http_status_code) (rate(http_server_duration_count{service=\"ingest-api\"}[1m]))", "legendFormat": "{{http_status_code}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Ingest latency (p50/p95/p99)",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 1 },
+      "description": "ingest-api ingest HTTP handler latency percentiles. Sustained p95/p99 growth means ingest is slowing down under load, risking daemon-side request timeouts.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p99" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "event-db ledger max seq (growth rate)",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 1 },
+      "description": "Monotonic event-db event ledger sequence and its growth rate. Rate dropping toward zero while ingest traffic keeps flowing means writes are not committing to event-db.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "runtime_ledger_max_seq", "legendFormat": "max seq" },
+        { "expr": "rate(runtime_ledger_max_seq[1m])", "legendFormat": "rows/sec" }
+      ]
+    },
+
+    { "type": "row", "title": "CDC — Debezium (event-db → Kafka)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 }, "id": 5 },
+    {
+      "id": 6, "type": "timeseries", "title": "CDC lag behind source",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 9 },
+      "description": "Debezium connector lag behind event-db's WAL, in milliseconds. Crossing the 30s threshold means CDC has fallen far enough behind that Kafka (and everything downstream) is running on stale data.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "debezium_metrics_MilliSecondsBehindSource", "legendFormat": "{{name}}" }],
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 30000 }] }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "event-db replication slot unconsumed WAL",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 9 },
+      "description": "Bytes of event-db WAL retained by the Debezium replication slot because the connector hasn't consumed them yet. A steady climb means the CDC connector is stalled or down and event-db risks disk exhaustion.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "runtime_ledger_replication_slot_retained_bytes", "legendFormat": "{{slot_name}}" }],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    },
+
+    { "type": "row", "title": "Kafka — Redpanda / consumer groups", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }, "id": 8 },
+    {
+      "id": 9, "type": "timeseries", "title": "Consumer group lag (ingest.events)",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 17 },
+      "description": "Consumer group lag for ingest.events. A sustained climb means the projector cannot keep up with Redpanda.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "kminion_kafka_consumer_group_topic_lag{topic_name=\"ingest.events\"}", "legendFormat": "{{group_id}}" }]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Broker E2E roundtrip latency (p95)",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 17 },
+      "description": "p95 roundtrip latency of kminion's synthetic canary messages through Redpanda. Rising values mean the broker itself is slow, which drags down every real consumer group including the projector.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(kminion_end_to_end_roundtrip_latency_seconds_bucket[5m])))", "legendFormat": "p95" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 11, "type": "stat", "title": "E2E canary messages lost (1h)",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 17 },
+      "description": "Count of kminion canary messages produced but never observed as consumed within the last hour. Any value above zero means Redpanda is dropping or failing to deliver messages.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "increase(kminion_end_to_end_messages_lost_total[1h])" }],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }, "overrides": [] }
+    },
+
+    { "type": "row", "title": "Projector — apply (Kafka → tracer-db / OpenSearch)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 }, "id": 12 },
+    {
+      "id": 13, "type": "timeseries", "title": "Applied seq gap (max_seq − applied)",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 25 },
+      "description": "0에 가까울수록 정상. lag이 0인데 갭이 줄지 않으면 유실 의심.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "scalar(runtime_ledger_max_seq) - pipeline_applied_seq", "legendFormat": "{{consumer}}" }]
+    },
+    {
+      "id": 14, "type": "timeseries", "title": "Apply latency (received_at → commit), p95",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 25 },
+      "description": "p95 time from an event's received_at to the projector committing it into tracer-db/OpenSearch. Rising latency here means the projector is slow to apply even while caught up on offsets, risking stale reads on tracer-api.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, consumer) (rate(pipeline_apply_latency_seconds_bucket[5m])))", "legendFormat": "{{consumer}}" }],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "Records processed (by outcome)",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 25 },
+      "description": "Projector's per-second record processing rate broken down by outcome. A growing non-success share means the projector is failing to apply records, not just falling behind.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (consumer, outcome) (rate(pipeline_records_processed_total[1m]))", "legendFormat": "{{consumer}}/{{outcome}}" }]
+    },
+
+    { "type": "row", "title": "Sinks — tracer-db / OpenSearch / Temporal", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 }, "id": 16 },
+    {
+      "id": 17, "type": "timeseries", "title": "tracer-db active connections",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 33 },
+      "description": "Active backend connections held against the tracer database. A sustained climb toward the configured max_connections risks exhausting the pool and blocking tracer-api reads or projector writes.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "pg_stat_database_numbackends{database=\"tracer\"}", "legendFormat": "{{datname}}" }]
+    },
+    {
+      "id": 18, "type": "stat", "title": "OpenSearch cluster status",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 33 },
+      "description": "OpenSearch cluster health as reported by the exporter (the panel labels the healthy value as \"up\"). Anything else means tracer-api's OpenSearch-backed search endpoints are degraded or unavailable.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "elasticsearch_cluster_health_status" }],
+      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "1": { "text": "up" } } }] }, "overrides": [] }
+    },
+    {
+      "id": 19, "type": "timeseries", "title": "Temporal activity schedule-to-start (p95)",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 33 },
+      "description": "p95 time an AI job activity waits between being scheduled and picked up by agent-worker, per task queue. Rising values mean the worker doesn't have enough capacity to keep up with scheduled work.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, task_queue) (rate(temporal_activity_schedule_to_start_latency_bucket[5m])))", "legendFormat": "{{task_queue}}" }],
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] }
+    }
+  ]
+}

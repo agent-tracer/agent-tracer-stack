@@ -1,0 +1,13 @@
+global:
+  scrape_timeout: 10s
+  min_interval: 5s
+  max_connections: 2
+  max_idle_connections: 2
+
+target:
+  name: event_db
+  data_source_name: 'postgresql://monitor:monitor@event-db:5432/runtime?sslmode=disable'
+  collectors: [runtime_ledger]
+
+collector_files:
+  - "*.collector.yml"

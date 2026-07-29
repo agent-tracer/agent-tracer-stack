@@ -1,0 +1,38 @@
+groups:
+  - name: infra-resources
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }}/{{ $labels.instance }} 스크레이프 실패(다운)"
+
+      - alert: PostgresConnectionsSaturated
+        expr: sum by (database) (pg_stat_database_numbackends) / on(database) group_left max by (database) (pg_settings_max_connections) > 0.8
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.database }} 연결 풀 80% 초과"
+
+      - alert: RuntimeDbReplicationSlotWalGrowing
+        expr: runtime_ledger_replication_slot_retained_bytes > 1073741824
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "event-db replication slot(runtime_ledger) WAL 잔류 1GB 초과"
+          description: "Debezium 커넥터가 슬롯을 소비하지 않고 있다. 커넥터 상태를 확인할 것. 계속 방치하면 event-db 디스크가 고갈된다."
+
+      - alert: OpenSearchClusterRed
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "OpenSearch 클러스터 상태 RED"
+
+      - alert: OpenSearchHeapHigh
+        expr: elasticsearch_jvm_memory_used_bytes{area="heap"} / elasticsearch_jvm_memory_max_bytes{area="heap"} > 0.9
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "OpenSearch JVM 힙 사용률 90% 초과"

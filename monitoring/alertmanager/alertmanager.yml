@@ -1,0 +1,25 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ["alertname", "service"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: default
+  routes:
+    - matchers: ["severity=critical"]
+      receiver: default
+      repeat_interval: 1h
+
+receivers:
+  # 수신처가 비어 있어 발화한 알림은 어디로도 통지되지 않는다. 채널 선택은 배포자의 몫이라
+  # 기본값을 두지 않는다. webhook_configs 주석을 풀고 url을 채우면 통지가 시작된다.
+  - name: default
+    # webhook_configs:
+    #   - url: "https://hooks.slack.com/services/REPLACE/ME"
+
+inhibit_rules:
+  - source_matchers: ["alertname=ServiceDown"]
+    target_matchers: ["severity=warning"]
+    equal: ["job", "instance"]
