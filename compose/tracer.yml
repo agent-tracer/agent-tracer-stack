@@ -186,6 +186,7 @@ services:
     image: ${AGENT_TRACER_GATEWAY_IMAGE}
     volumes:
       - ../gateway/upstreams.d:/etc/nginx/upstreams.d:ro
+      - ../gateway/remotes.d:/etc/nginx/remotes.d:ro
     ports: ["${GATEWAY_PUBLISHED_PORT:-127.0.0.1:3847}:3847"]
     depends_on: [ingest-api, tracer-api, tracer-web]
 
