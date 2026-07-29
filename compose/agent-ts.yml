@@ -17,6 +17,8 @@ x-agent-env: &agent-env
   TEMPORAL_ADDRESS: temporal:7233
   # 단가표도 한도도 자격도 이 서비스가 갖지 않으므로 시도마다 봉투를 여기서 받아 온다.
   TRACER_API_URL: http://tracer-api:3902
+  # 워커가 배포 단위 안의 창구에서 실행 봉투와 프롬프트 조각의 판을 받는다.
+  AGENT_API_URL: http://agent-api:3904
 
 x-agent-depends: &agent-depends
   tracer-db: { condition: service_healthy }
@@ -25,6 +27,11 @@ x-agent-depends: &agent-depends
   temporal: { condition: service_started }
   migrate: { condition: service_completed_successfully }
   agent-schema: { condition: service_completed_successfully }
+
+# 워커는 부팅에서 창구에 프롬프트 조각을 올리고 그 판을 받으므로 창구가 먼저 선다.
+x-worker-depends: &worker-depends
+  <<: *agent-depends
+  agent-api: { condition: service_healthy }
 
 services:
   # 계약이 선언한 에이전트 스키마를 적용하고 끝나는 원샷이다.
@@ -56,18 +63,18 @@ services:
     image: ${TRACER_AGENT_TS_IMAGE}
     command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/chat.main.ts"]
     environment: *agent-env
-    depends_on: *agent-depends
+    depends_on: *worker-depends
 
   # 제목 제안과 레시피 스캔과 정리 제안의 워크플로를 돌며 sdk-jobs 큐만 폴링한다.
   agent-jobs-worker:
     image: ${TRACER_AGENT_TS_IMAGE}
     command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/jobs.main.ts"]
     environment: *agent-env
-    depends_on: *agent-depends
+    depends_on: *worker-depends
 
   # 긴 언어 모델 호출만 도는 파드이며 sdk-generate 큐만 폴링해 replica를 따로 늘린다.
   agent-generate-worker:
     image: ${TRACER_AGENT_TS_IMAGE}
     command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/generate.main.ts"]
     environment: *agent-env
-    depends_on: *agent-depends
+    depends_on: *worker-depends
