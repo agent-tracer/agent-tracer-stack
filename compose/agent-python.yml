@@ -3,6 +3,8 @@ name: agent-tracer
 # 실행 원장은 아직 tracer-db 안에 살고 조회 모델 표와 데이터베이스를 나눠 갖는다.
 x-agent-env: &agent-env
   MONITOR_PROFILE: prd
+  # 저장된 모델 자격을 복호화하는 열쇠이며 추적 서비스와 같은 값이어야 한다.
+  MONITOR_SETTINGS_ENCRYPTION_KEY: ${MONITOR_SETTINGS_ENCRYPTION_KEY:-monitor-dev-key}
   TRACER_DB_HOST: tracer-db
   TRACER_DB_PORT: "5432"
   TRACER_DB_NAME: tracer
