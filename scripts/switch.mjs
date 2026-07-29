@@ -18,7 +18,11 @@ const services = ["agent-api", "agent-chat-worker", "agent-jobs-worker", "agent-
 compose(other, "rm", "-sf", ...services);
 
 applyGatewayProfile(target);
-const up = compose(target, "up", "-d", "--wait");
+const up = compose(target, "up", "-d");
+
+// nginx는 include를 설정을 읽을 때만 훑으므로 선언을 바꾸면 다시 읽혀야 한다.
+if (up.status === 0) compose(target, "exec", "-T", "gateway", "nginx", "-s", "reload");
+
 if (up.status === 0) console.log(`구현체가 ${target}로 바뀌었다. 원장과 큐는 그대로다.`);
 
 process.exit(up.status ?? 1);
