@@ -1,0 +1,61 @@
+name: agent-tracer
+
+# 실행 원장은 아직 tracer-db 안에 살고 조회 모델 표와 데이터베이스를 나눠 갖는다.
+x-agent-env: &agent-env
+  MONITOR_PROFILE: prd
+  TRACER_DB_HOST: tracer-db
+  TRACER_DB_PORT: "5432"
+  TRACER_DB_NAME: tracer
+  AGENT_DB_READER_USER: ${POSTGRES_USER:-root}
+  AGENT_DB_READER_PASSWORD: ${POSTGRES_PASSWORD:-root}
+  AGENT_DB_CHECKPOINT_USER: ${POSTGRES_USER:-root}
+  AGENT_DB_CHECKPOINT_PASSWORD: ${POSTGRES_PASSWORD:-root}
+  AGENT_DB_EXECUTION_USER: ${POSTGRES_USER:-root}
+  AGENT_DB_EXECUTION_PASSWORD: ${POSTGRES_PASSWORD:-root}
+  KAFKA_BROKERS: redpanda:29092
+  OPENSEARCH_NODE: http://opensearch:9200
+  TEMPORAL_ADDRESS: temporal:7233
+  # 단가표도 한도도 자격도 이 서비스가 갖지 않으므로 시도마다 봉투를 여기서 받아 온다.
+  TRACER_API_URL: http://tracer-api:3902
+  LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+  LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+  LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+  LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-agent-tracer-local}
+  LANGSMITH_WORKSPACE_ID: ${LANGSMITH_WORKSPACE_ID:-}
+
+x-agent-depends: &agent-depends
+  tracer-db: { condition: service_healthy }
+  redpanda: { condition: service_healthy }
+  opensearch: { condition: service_healthy }
+  temporal: { condition: service_started }
+  migrate: { condition: service_completed_successfully }
+
+services:
+  agent-api:
+    image: ${TRACER_AGENT_PYTHON_IMAGE}
+    environment:
+      <<: *agent-env
+      TRACER_AGENT_HOST: 0.0.0.0
+      TRACER_AGENT_PORT: "8800"
+    depends_on: *agent-depends
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8800/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+      start_interval: 1s
+
+  # 대화 실행의 재시도와 취소와 순서를 소유하며 graph-chat 큐만 폴링한다.
+  agent-chat-worker:
+    image: ${TRACER_AGENT_PYTHON_IMAGE}
+    command: ["python", "-m", "tracer_agent.worker", "chat"]
+    environment: *agent-env
+    depends_on: *agent-depends
+
+  # 제목 제안과 레시피 스캔과 정리 제안의 워크플로를 돌며 graph-jobs 큐만 폴링한다.
+  agent-jobs-worker:
+    image: ${TRACER_AGENT_PYTHON_IMAGE}
+    command: ["python", "-m", "tracer_agent.worker", "jobs"]
+    environment: *agent-env
+    depends_on: *agent-depends
