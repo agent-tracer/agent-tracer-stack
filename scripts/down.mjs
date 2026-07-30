@@ -1,13 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { composeArgs, parseProfile, readVersions } from "./stack.mjs";
+import { allComposeArgs, readVersions } from "./stack.mjs";
 
-const profile = parseProfile(process.argv, "tracer");
-const monitoring = process.argv.includes("--monitoring");
-const keepData = !process.argv.includes("--purge");
+// 어느 프로파일로 띄웠든 합성 전부를 걷어야 프로파일 밖의 파드와 볼륨이 남지 않는다.
+const purge = process.argv.includes("--volumes");
 
 const result = spawnSync(
     "docker",
-    ["compose", ...composeArgs(profile, monitoring), "down", ...(keepData ? [] : ["-v"])],
+    ["compose", ...allComposeArgs(), "down", "--remove-orphans", ...(purge ? ["--volumes"] : [])],
     { stdio: "inherit", env: { ...process.env, ...readVersions() } },
 );
 

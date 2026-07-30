@@ -32,6 +32,12 @@ export function readVersions() {
     return Object.fromEntries(entries);
 }
 
+/** 프로파일과 무관하게 이 저장소가 아는 합성 전부이며 기동이 아니라 정리가 쓴다. */
+export function allComposeArgs() {
+    const files = [...new Set([...Object.values(PROFILES).flat(), MONITORING])];
+    return files.flatMap((file) => ["-f", join(root, "compose", file)]);
+}
+
 export function composeArgs(profile, withMonitoring = false) {
     const files = PROFILES[profile];
     if (files === undefined) {

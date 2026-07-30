@@ -11,7 +11,6 @@ x-agent-env: &agent-env
   TRACER_DB_USER: ${POSTGRES_USER:-root}
   TRACER_DB_PASSWORD: ${POSTGRES_PASSWORD:-root}
   KAFKA_BROKERS: redpanda:29092
-  OPENSEARCH_NODE: http://opensearch:9200
   TEMPORAL_ADDRESS: temporal:7233
   # 큐의 완전한 이름을 이 접두사와 계약의 큐 키가 만들며, 두 축을 나란히 띄울 때만 값을 달리 준다.
   AGENT_TASK_QUEUE_PREFIX: ${AGENT_TASK_QUEUE_PREFIX:-agent}
@@ -28,7 +27,6 @@ x-agent-env: &agent-env
 x-agent-depends: &agent-depends
   tracer-db: { condition: service_healthy }
   redpanda: { condition: service_healthy }
-  opensearch: { condition: service_healthy }
   temporal: { condition: service_started }
   migrate: { condition: service_completed_successfully }
   agent-schema: { condition: service_completed_successfully }
