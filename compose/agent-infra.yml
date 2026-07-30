@@ -2,12 +2,15 @@ name: agent-tracer
 
 # 두 구현체가 함께 쓰는 오케스트레이션 기반이며 어느 축을 올리든 먼저 선다.
 services:
+  # 세 원장이 같은 자격을 쓰므로 adminer 가 서버만 바꿔 붙는다.
   temporal-db:
     image: postgres:17-alpine
-    environment: { POSTGRES_USER: temporal, POSTGRES_PASSWORD: temporal }
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
     volumes: [temporal-db-data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root}"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -21,8 +24,8 @@ services:
     environment:
       - DB=postgres12
       - DB_PORT=5432
-      - POSTGRES_USER=temporal
-      - POSTGRES_PWD=temporal
+      - POSTGRES_USER=${POSTGRES_USER:-root}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-root}
       - POSTGRES_SEEDS=temporal-db
     ports: ["${TEMPORAL_PUBLISHED_PORT:-7233}:7233"]
 

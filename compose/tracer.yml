@@ -49,12 +49,15 @@ services:
       start_period: 30s
       start_interval: 1s
 
+  # 세 원장이 로그인 화면의 목록에 서며, temporal 은 그것을 띄우는 프로파일에서만 닿는다.
   adminer:
     image: adminer:4
     environment:
       ADMINER_DEFAULT_SERVER: tracer-db
       ADMINER_DESIGN: nette
       ADMINER_PLUGINS: "tables-filter tinymce"
+    volumes:
+      - ../adminer/login-servers.php:/var/www/html/plugins-enabled/login-servers.php:ro
     ports: ["${ADMINER_PUBLISHED_PORT:-8081}:8080"]
     depends_on:
       event-db: { condition: service_healthy }
