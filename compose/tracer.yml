@@ -49,7 +49,7 @@ services:
       start_period: 30s
       start_interval: 1s
 
-  # 세 원장이 로그인 화면의 목록에 서며, temporal 은 그것을 띄우는 프로파일에서만 닿는다.
+  # 네 원장이 로그인 화면의 목록에 서며, 에이전트 쪽 둘은 그것을 띄우는 프로파일에서만 닿는다.
   adminer:
     image: adminer:4
     environment:
