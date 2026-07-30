@@ -1,6 +1,6 @@
 name: agent-tracer
 
 services:
-  # 서버가 아니라 정적 자산이며 게이트웨이가 /remote/agent/ 접두어 아래에 낸다.
+  # 서버가 아니라 정적 자산이며 게이트웨이가 /agent/ 접두어 아래에 낸다.
   agent-web:
     image: ${TRACER_AGENT_WEB_IMAGE}
