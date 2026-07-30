@@ -14,6 +14,7 @@ node scripts/up.mjs --profile python      Python 구현체를 함께
 node scripts/up.mjs --profile compare     두 구현체를 나란히. ?backend= 가 축을 고른다
 node scripts/switch.mjs python            원장과 큐를 그대로 두고 구현체만 교체
 node scripts/doctor.mjs --profile ts      이미지와 합성과 상류 선언을 검사
+  --skip-images                           이미지를 만들지 않는 자리에서 나머지만 검사
 node scripts/conformance.mjs              두 구현체의 적합성 스위트를 나란히 실행
 node scripts/down.mjs                     프로파일과 무관하게 전부 내린다. 데이터는 남는다
 node scripts/down.mjs --volumes           볼륨까지 지운다

@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 검사기 테스트
+        run: node --test "scripts/**/*.test.mjs"
+
+      # 이미지는 각 저장소가 만들므로 여기서는 합성과 상류 선언만 본다.
+      - name: 프로파일 넷
+        run: |
+          for profile in tracer ts python compare; do
+            node scripts/doctor.mjs --profile "$profile" --skip-images
+          done
+
+      - name: 계측 오버레이
+        run: node scripts/doctor.mjs --profile ts --monitoring --skip-images
+
+  gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 상류 선언은 게이트웨이의 map 본문으로 들어가므로 그 문법이 성립해야 한다.
+      - name: 상류 선언
+        run: |
+          cat > probe.conf <<'CONF'
+          events {}
+          http {
+            resolver 127.0.0.11 valid=10s;
+            map $arg_backend $agent_api { include /etc/nginx/upstreams.d/*.map; }
+            map $host $agent_web { include /etc/nginx/remotes.d/*.map; }
+            server { listen 8080; location / { return 200; } }
+          }
+          CONF
+          for profile in ts python compare; do
+            rm -rf up re && mkdir -p up re
+            cp "gateway/profiles/${profile}.map" up/agent.map
+            cp gateway/profiles/agent-web.map re/agent-web.map
+            docker run --rm \
+              -v "$PWD/probe.conf:/etc/nginx/nginx.conf:ro" \
+              -v "$PWD/up:/etc/nginx/upstreams.d:ro" \
+              -v "$PWD/re:/etc/nginx/remotes.d:ro" \
+              nginx:1.27-alpine nginx -t
+          done

@@ -7,6 +7,8 @@ import { composeArgs, gatewayUpstreamSource, parseProfile, readVersions } from "
 const profile = parseProfile(process.argv, "tracer");
 const monitoring = process.argv.includes("--monitoring");
 const versions = readVersions();
+// 이미지를 만들지 않는 자리에서도 합성과 선언은 검사할 수 있다.
+const skipImages = process.argv.includes("--skip-images");
 let failed = 0;
 
 function report(ok, message) {
@@ -15,9 +17,11 @@ function report(ok, message) {
 }
 
 // 태그가 가리키는 이미지가 실제로 있어야 합성이 뜬다.
-for (const [key, reference] of Object.entries(versions)) {
-    const found = spawnSync("docker", ["image", "inspect", reference], { stdio: "ignore" }).status === 0;
-    report(found, `${key} = ${reference}`);
+if (!skipImages) {
+    for (const [key, reference] of Object.entries(versions)) {
+        const found = spawnSync("docker", ["image", "inspect", reference], { stdio: "ignore" }).status === 0;
+        report(found, `${key} = ${reference}`);
+    }
 }
 
 const config = spawnSync(
