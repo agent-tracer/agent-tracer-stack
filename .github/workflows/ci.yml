@@ -33,6 +33,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       # 상류 선언은 게이트웨이의 map 본문으로 들어가므로 그 문법이 성립해야 한다.
       - name: 상류 선언
         run: |
@@ -41,17 +45,16 @@ jobs:
           http {
             resolver 127.0.0.11 valid=10s;
             map $arg_backend $agent_api { include /etc/nginx/upstreams.d/*.map; }
+            map $host $agent_upstreams { include /etc/nginx/upstreams.d/*.catalog; }
             map $host $agent_web { include /etc/nginx/remotes.d/*.map; }
-            server { listen 8080; location / { return 200; } }
+            server { listen 8080; location / { return 200 $agent_upstreams; } }
           }
           CONF
           for profile in ts python compare; do
-            rm -rf up re && mkdir -p up re
-            cp "gateway/profiles/${profile}.map" up/agent.map
-            cp gateway/profiles/agent-web.map re/agent-web.map
+            node -e "import('./scripts/stack.mjs').then((m) => m.applyGatewayProfile('${profile}'))"
             docker run --rm \
               -v "$PWD/probe.conf:/etc/nginx/nginx.conf:ro" \
-              -v "$PWD/up:/etc/nginx/upstreams.d:ro" \
-              -v "$PWD/re:/etc/nginx/remotes.d:ro" \
+              -v "$PWD/gateway/upstreams.d:/etc/nginx/upstreams.d:ro" \
+              -v "$PWD/gateway/remotes.d:/etc/nginx/remotes.d:ro" \
               nginx:1.27-alpine nginx -t
           done
