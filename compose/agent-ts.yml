@@ -15,6 +15,8 @@ x-agent-env: &agent-env
   KAFKA_BROKERS: redpanda:29092
   OPENSEARCH_NODE: http://opensearch:9200
   TEMPORAL_ADDRESS: temporal:7233
+  # 큐의 완전한 이름을 이 접두사와 계약의 큐 키가 만들며, 두 축을 나란히 띄울 때만 값을 달리 준다.
+  AGENT_TASK_QUEUE_PREFIX: ${AGENT_TASK_QUEUE_PREFIX:-agent}
   # 단가표도 한도도 자격도 이 서비스가 갖지 않으므로 시도마다 봉투를 여기서 받아 온다.
   TRACER_API_URL: http://tracer-api:3902
   # 워커가 배포 단위 안의 창구에서 실행 봉투와 프롬프트 조각의 판을 받는다.
@@ -58,21 +60,21 @@ services:
       start_period: 20s
       start_interval: 1s
 
-  # 대화 실행의 재시도와 취소와 순서를 소유하며 sdk-chat 큐만 폴링한다.
+  # 대화 실행의 재시도와 취소와 순서를 소유하며 chat 큐만 폴링한다.
   agent-chat-worker:
     image: ${TRACER_AGENT_TS_IMAGE}
     command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/chat.main.ts"]
     environment: *agent-env
     depends_on: *worker-depends
 
-  # 제목 제안과 레시피 스캔과 정리 제안의 워크플로를 돌며 sdk-jobs 큐만 폴링한다.
+  # 제목 제안과 레시피 스캔과 정리 제안의 워크플로를 돌며 jobs 큐만 폴링한다.
   agent-jobs-worker:
     image: ${TRACER_AGENT_TS_IMAGE}
     command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/jobs.main.ts"]
     environment: *agent-env
     depends_on: *worker-depends
 
-  # 긴 언어 모델 호출만 도는 파드이며 sdk-generate 큐만 폴링해 replica를 따로 늘린다.
+  # 긴 언어 모델 호출만 도는 파드이며 generate 큐만 폴링해 replica를 따로 늘린다.
   agent-generate-worker:
     image: ${TRACER_AGENT_TS_IMAGE}
     command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/generate.main.ts"]
