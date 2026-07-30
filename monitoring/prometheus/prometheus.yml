@@ -32,8 +32,8 @@ scrape_configs:
     static_configs:
       - targets: ["otel-collector:9465"]
 
-  # ingest-api/tracer-api/projector/sdk 워커 셋: OTel auto-instrumentation이
-  # 각 컨테이너 안에서 노출하는 Prometheus 엔드포인트(HTTP/pg/kafkajs RED 지표 + Node 런타임 지표).
+  # 계측 오버레이가 엔드포인트를 준 서비스가 자기 컨테이너 안에서 여는 Prometheus 창구다.
+  # HTTP·pg·kafkajs RED 지표와 Node 런타임 지표를 함께 낸다.
   - job_name: app-services
     metrics_path: /metrics
     static_configs:
@@ -43,12 +43,6 @@ scrape_configs:
         labels: { service: tracer-api }
       - targets: ["projector:9464"]
         labels: { service: projector }
-      - targets: ["agent-jobs-worker:9464"]
-        labels: { service: agent-jobs-worker }
-      - targets: ["agent-generate-worker:9464"]
-        labels: { service: agent-generate-worker }
-      - targets: ["agent-chat-worker:9464"]
-        labels: { service: agent-chat-worker }
 
   # 워커 SDK(Rust core)가 노출하는 지표. schedule-to-start 지연·폴러·태스크 슬롯은
   # 워커만 알고 있어 temporal 서버 스크레이프로는 얻을 수 없다.
