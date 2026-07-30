@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { composeArgs, parseProfile, readVersions } from "./stack.mjs";
+import { composeArgs, gatewayUpstreamSource, parseProfile, readVersions } from "./stack.mjs";
 
 const profile = parseProfile(process.argv, "tracer");
 const monitoring = process.argv.includes("--monitoring");
@@ -28,9 +28,12 @@ const config = spawnSync(
 report(config.status === 0, `프로파일 ${profile}의 합성이 유효하다`);
 if (config.status !== 0) console.error(config.stderr);
 
+// 얹힌 선언은 기동이 프로파일에 맞춰 다시 쓰므로, 진단은 이 프로파일이 얹을 원본이 있는지를 본다.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const declared = existsSync(join(root, "gateway/upstreams.d/agent.map"));
-const expectsAgent = profile !== "tracer";
-report(declared === expectsAgent, expectsAgent ? "에이전트 상류가 선언되어 있다" : "에이전트 상류가 선언되어 있지 않다");
+const source = gatewayUpstreamSource(profile);
+report(
+    source === null || existsSync(join(root, "gateway/profiles", source)),
+    source === null ? `프로파일 ${profile}은 에이전트 상류를 얹지 않는다` : `프로파일 ${profile}의 에이전트 상류 선언이 있다`,
+);
 
 process.exit(failed === 0 ? 0 : 1);

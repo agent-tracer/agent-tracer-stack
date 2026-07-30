@@ -13,7 +13,8 @@ function compose(stdio, ...args) {
     );
 }
 
-const up = compose("inherit", "up", "-d");
+// 프로파일이 고르지 않은 컨테이너가 남으면 게이트웨이 뒤에 앞 프로파일의 파드가 그대로 응답한다.
+const up = compose("inherit", "up", "-d", "--remove-orphans");
 
 if (up.status === 0) {
     // nginx는 include를 설정을 읽을 때만 훑으므로 선언을 바꾸면 다시 읽혀야 한다.
