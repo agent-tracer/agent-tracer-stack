@@ -1,4 +1,4 @@
-collector_name: tracer_ai_jobs
+collector_name: agent_ai_jobs
 
 metrics:
   # 식별자는 라벨로 내보내지 않는다. 종류·상태·실행기·백엔드만 운영 차원으로 유지한다.

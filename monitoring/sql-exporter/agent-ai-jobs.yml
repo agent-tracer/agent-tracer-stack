@@ -5,9 +5,9 @@ global:
   max_idle_connections: 2
 
 target:
-  name: tracer_db
-  data_source_name: 'postgresql://monitor:monitor@tracer-db:5432/tracer?sslmode=disable'
-  collectors: [tracer_ai_jobs]
+  name: agent_db
+  data_source_name: 'postgresql://monitor:monitor@agent-db:5432/agent?sslmode=disable'
+  collectors: [agent_ai_jobs]
 
 collector_files:
   - "*.collector.yml"

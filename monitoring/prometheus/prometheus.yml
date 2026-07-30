@@ -94,8 +94,8 @@ scrape_configs:
     static_configs:
       - targets: ["sql-exporter:9399"]
         labels: { database: runtime }
-      - targets: ["sql-exporter-tracer:9399"]
-        labels: { database: tracer }
+      - targets: ["sql-exporter-agent:9399"]
+        labels: { database: agent }
 
   - job_name: temporal
     static_configs:

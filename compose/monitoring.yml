@@ -167,16 +167,16 @@ services:
     depends_on:
       event-db: { condition: service_healthy }
 
-  # 잡의 적체와 고착과 시도 횟수는 tracer-db의 현재 상태가 진실 원천이다.
-  sql-exporter-tracer:
+  # 잡의 적체와 고착과 시도 횟수는 agent-db의 현재 상태가 진실 원천이다.
+  sql-exporter-agent:
     image: burningalchemist/sql_exporter:0.24.2
     command:
-      - "-config.file=/etc/sql_exporter/tracer-ai-jobs.yml"
-      - "-config.data-source-name=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root}@tracer-db:5432/tracer?sslmode=disable"
+      - "-config.file=/etc/sql_exporter/agent-ai-jobs.yml"
+      - "-config.data-source-name=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root}@agent-db:5432/agent?sslmode=disable"
     volumes:
       - ../monitoring/sql-exporter:/etc/sql_exporter:ro
     depends_on:
-      tracer-db: { condition: service_healthy }
+      agent-db: { condition: service_healthy }
 
   # 소비자 그룹의 지연과 생산-소비 왕복을 재며 단일 브로커라 파티션 재분배는 끈다.
   kminion:
