@@ -53,7 +53,6 @@ services:
   adminer:
     image: adminer:4
     environment:
-      ADMINER_DEFAULT_SERVER: tracer-db
       ADMINER_DESIGN: nette
       ADMINER_PLUGINS: "tables-filter tinymce"
     volumes:
