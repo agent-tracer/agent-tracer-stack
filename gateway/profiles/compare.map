@@ -1,0 +1,5 @@
+# 두 접수구가 함께 떠 있으므로 backend 파라미터가 어느 축이 받을지 고른다.
+# 파라미터가 없으면 배포가 선언한 축이 받는다 — 화면은 파라미터를 보내지 않는다.
+ts      http://agent-api-ts:3904;
+python  http://agent-api-python:8800;
+default http://agent-api-ts:3904;

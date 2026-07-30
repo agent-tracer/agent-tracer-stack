@@ -11,12 +11,20 @@
 node scripts/up.mjs --profile tracer      추적 스택만. 에이전트 경로는 501
 node scripts/up.mjs --profile ts          TypeScript 구현체를 함께
 node scripts/up.mjs --profile python      Python 구현체를 함께
+node scripts/up.mjs --profile compare     두 구현체를 나란히. ?backend= 가 축을 고른다
 node scripts/switch.mjs python            원장과 큐를 그대로 두고 구현체만 교체
 node scripts/doctor.mjs --profile ts      이미지와 합성과 상류 선언을 검사
 node scripts/conformance.mjs              두 구현체의 적합성 스위트를 나란히 실행
 node scripts/down.mjs                     프로파일과 무관하게 전부 내린다. 데이터는 남는다
 node scripts/down.mjs --volumes           볼륨까지 지운다
 ```
+
+`compare`는 두 접수구를 함께 세우고 게이트웨이가 `?backend=ts` · `?backend=python`으로 가른다.
+파라미터가 없으면 `ts`가 받는다. 큐 접두사가 축마다 달라 같은 실행을 두 번 집지 않으며
+원장은 하나라 두 축의 결과가 한 화면에 함께 쌓인다.
+
+**진행 중인 턴을 남긴 채 이 배치로 들어가지 않는다.** 두 대화 워커가 같은 원장을 보므로
+부팅 복구가 활성 턴을 두 번 되살린다.
 
 `--monitoring`을 더하면 계측 오버레이가 함께 뜨고 대시보드가 `127.0.0.1:3000`에 열린다.
 게이트웨이는 `127.0.0.1:3847` 하나이며 브라우저는 그 포트만 본다.

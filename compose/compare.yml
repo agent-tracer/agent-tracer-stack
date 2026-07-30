@@ -1,0 +1,122 @@
+name: agent-tracer
+
+# 두 구현체를 나란히 세워 같은 원장 위에서 견주는 배치다. 파드 이름이 축을 말하는 것은
+# 견주는 것 자체가 목적이기 때문이며, 한 축만 올리는 배치는 중립 이름을 그대로 쓴다.
+x-agent-env: &agent-env
+  MONITOR_PROFILE: prd
+  MONITOR_SETTINGS_ENCRYPTION_KEY: ${MONITOR_SETTINGS_ENCRYPTION_KEY:-monitor-dev-key}
+  AGENT_DB_HOST: agent-db
+  AGENT_DB_PORT: "5432"
+  AGENT_DB_NAME: agent
+  POSTGRES_USER: ${POSTGRES_USER:-root}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+  KAFKA_BROKERS: redpanda:29092
+  TEMPORAL_ADDRESS: temporal:7233
+  TRACER_API_URL: http://tracer-api:3902
+
+x-agent-depends: &agent-depends
+  agent-db: { condition: service_healthy }
+  redpanda: { condition: service_healthy }
+  temporal: { condition: service_started }
+  agent-schema: { condition: service_completed_successfully }
+
+# 접두사가 축마다 달라 두 구현체가 서로 다른 큐를 본다. 같은 실행을 두 번 집지 않는다.
+x-ts-env: &ts-env
+  <<: *agent-env
+  NODE_ENV: production
+  MONITOR_LISTEN_HOST: 0.0.0.0
+  AGENT_TASK_QUEUE_PREFIX: ${COMPARE_TS_QUEUE_PREFIX:-agent-ts}
+  AGENT_API_URL: http://agent-api-ts:3904
+
+x-python-env: &python-env
+  <<: *agent-env
+  AGENT_TASK_QUEUE_PREFIX: ${COMPARE_PYTHON_QUEUE_PREFIX:-agent-python}
+  AGENT_API_URL: http://agent-api-python:8800
+  LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+  LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+  LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+  LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-agent-tracer-local}
+  LANGSMITH_WORKSPACE_ID: ${LANGSMITH_WORKSPACE_ID:-}
+
+x-ts-worker-depends: &ts-worker-depends
+  <<: *agent-depends
+  agent-api-ts: { condition: service_healthy }
+
+x-python-worker-depends: &python-worker-depends
+  <<: *agent-depends
+  agent-api-python: { condition: service_healthy }
+
+services:
+  # DDL 러너를 가진 구현체가 하나뿐이라 두 축이 같은 스키마를 그 이미지로 받는다.
+  agent-schema:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-api && exec node --import @swc-node/register/esm-register src/agent.schema.ts"]
+    environment: *ts-env
+    restart: "no"
+    depends_on:
+      agent-db: { condition: service_healthy }
+
+  agent-api-ts:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    environment:
+      <<: *ts-env
+      AGENT_API_PORT: "3904"
+    depends_on: *agent-depends
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3904/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+      start_interval: 1s
+
+  agent-chat-worker-ts:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/chat.main.ts"]
+    environment: *ts-env
+    depends_on: *ts-worker-depends
+
+  agent-jobs-worker-ts:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/jobs.main.ts"]
+    environment: *ts-env
+    depends_on: *ts-worker-depends
+
+  agent-generate-worker-ts:
+    image: ${TRACER_AGENT_TS_IMAGE}
+    command: ["sh", "-c", "cd services/agent-worker && exec node --import @swc-node/register/esm-register src/generate.main.ts"]
+    environment: *ts-env
+    depends_on: *ts-worker-depends
+
+  agent-api-python:
+    image: ${TRACER_AGENT_PYTHON_IMAGE}
+    environment:
+      <<: *python-env
+      TRACER_AGENT_HOST: 0.0.0.0
+      TRACER_AGENT_PORT: "8800"
+    depends_on: *agent-depends
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8800/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+      start_interval: 1s
+
+  agent-chat-worker-python:
+    image: ${TRACER_AGENT_PYTHON_IMAGE}
+    command: ["python", "-m", "tracer_agent.worker", "chat"]
+    environment: *python-env
+    depends_on: *python-worker-depends
+
+  agent-jobs-worker-python:
+    image: ${TRACER_AGENT_PYTHON_IMAGE}
+    command: ["python", "-m", "tracer_agent.worker", "jobs"]
+    environment: *python-env
+    depends_on: *python-worker-depends
+
+  agent-generate-worker-python:
+    image: ${TRACER_AGENT_PYTHON_IMAGE}
+    command: ["python", "-m", "tracer_agent.worker", "generate"]
+    environment: *python-env
+    depends_on: *python-worker-depends

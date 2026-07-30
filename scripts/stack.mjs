@@ -9,13 +9,14 @@ export const PROFILES = {
     tracer: ["tracer.yml"],
     ts: ["tracer.yml", "agent-infra.yml", "agent-ts.yml", "agent-web.yml"],
     python: ["tracer.yml", "agent-infra.yml", "agent-python.yml", "agent-web.yml"],
+    compare: ["tracer.yml", "agent-infra.yml", "compare.yml", "agent-web.yml"],
 };
 
 /** 계측 오버레이는 프로파일 위에 겹친다. */
 const MONITORING = "monitoring.yml";
 
 /** 프로파일마다 게이트웨이가 읽을 상류 선언이 다르다. */
-const UPSTREAMS = { tracer: null, ts: "ts.map", python: "python.map" };
+const UPSTREAMS = { tracer: null, ts: "ts.map", python: "python.map", compare: "compare.map" };
 
 /** 프로파일이 게이트웨이에 얹을 상류 선언의 원본이며 에이전트가 없는 프로파일은 null이다. */
 export function gatewayUpstreamSource(profile) {
