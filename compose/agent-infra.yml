@@ -2,7 +2,24 @@ name: agent-tracer
 
 # 두 구현체가 함께 쓰는 오케스트레이션 기반이며 어느 축을 올리든 먼저 선다.
 services:
-  # 세 원장이 같은 자격을 쓰므로 adminer 가 서버만 바꿔 붙는다.
+  # 실행 원장이며 조회 모델과 데이터베이스를 나누어 갖는다. 두 구현체가 앱 계정 하나로 붙는다.
+  agent-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: agent
+    ports: ["${AGENT_DB_PUBLISHED_PORT:-5434}:5432"]
+    volumes: [agent-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root} -d agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+      start_interval: 1s
+
+  # 네 원장이 같은 자격을 쓰므로 adminer 가 서버만 바꿔 붙는다.
   temporal-db:
     image: postgres:17-alpine
     environment:
@@ -38,4 +55,5 @@ services:
     ports: ["${TEMPORAL_UI_PUBLISHED_PORT:-8233}:8080"]
 
 volumes:
+  agent-db-data:
   temporal-db-data:

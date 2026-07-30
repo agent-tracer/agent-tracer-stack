@@ -1,15 +1,15 @@
 name: agent-tracer
 
-# 실행 원장은 아직 tracer-db 안에 살고 조회 모델 표와 데이터베이스를 나눠 갖는다.
+# 실행 원장은 agent-db 에 살며 조회 모델과 데이터베이스를 나누어 갖는다.
 x-agent-env: &agent-env
   MONITOR_PROFILE: prd
   # 저장된 모델 자격을 복호화하는 열쇠이며 추적 서비스와 같은 값이어야 한다.
   MONITOR_SETTINGS_ENCRYPTION_KEY: ${MONITOR_SETTINGS_ENCRYPTION_KEY:-monitor-dev-key}
-  TRACER_DB_HOST: tracer-db
-  TRACER_DB_PORT: "5432"
-  TRACER_DB_NAME: tracer
-  TRACER_DB_USER: ${POSTGRES_USER:-root}
-  TRACER_DB_PASSWORD: ${POSTGRES_PASSWORD:-root}
+  AGENT_DB_HOST: agent-db
+  AGENT_DB_PORT: "5432"
+  AGENT_DB_NAME: agent
+  AGENT_DB_USER: ${POSTGRES_USER:-root}
+  AGENT_DB_PASSWORD: ${POSTGRES_PASSWORD:-root}
   KAFKA_BROKERS: redpanda:29092
   TEMPORAL_ADDRESS: temporal:7233
   # 큐의 완전한 이름을 이 접두사와 계약의 큐 키가 만들며, 두 축을 나란히 띄울 때만 값을 달리 준다.
@@ -25,10 +25,9 @@ x-agent-env: &agent-env
   LANGSMITH_WORKSPACE_ID: ${LANGSMITH_WORKSPACE_ID:-}
 
 x-agent-depends: &agent-depends
-  tracer-db: { condition: service_healthy }
+  agent-db: { condition: service_healthy }
   redpanda: { condition: service_healthy }
   temporal: { condition: service_started }
-  migrate: { condition: service_completed_successfully }
   agent-schema: { condition: service_completed_successfully }
 
 # 워커는 부팅에서 창구에 프롬프트 조각을 올리고 그 판을 받으므로 창구가 먼저 선다.
@@ -43,15 +42,14 @@ services:
     image: ${TRACER_AGENT_TS_IMAGE}
     command: ["sh", "-c", "cd services/agent-api && exec node --import @swc-node/register/esm-register src/agent.schema.ts"]
     environment:
-      AGENT_DB_HOST: tracer-db
+      AGENT_DB_HOST: agent-db
       AGENT_DB_PORT: "5432"
-      AGENT_DB_NAME: tracer
+      AGENT_DB_NAME: agent
       POSTGRES_USER: ${POSTGRES_USER:-root}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
     restart: "no"
     depends_on:
-      tracer-db: { condition: service_healthy }
-      migrate: { condition: service_completed_successfully }
+      agent-db: { condition: service_healthy }
 
   agent-api:
     image: ${TRACER_AGENT_PYTHON_IMAGE}
