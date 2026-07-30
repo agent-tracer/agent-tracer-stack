@@ -7,4 +7,5 @@ build/
 
 # 프로파일이 고른 상류 선언은 기동할 때 만들어진다.
 gateway/upstreams.d/*.map
+gateway/upstreams.d/*.catalog
 gateway/remotes.d/*.map
