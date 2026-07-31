@@ -7,6 +7,10 @@
 추적 스택은 이 저장소 없이도 단독으로 뜬다. 여기가 필요한 것은 에이전트 서비스를 함께 띄울
 때다. 에이전트 구현은 둘 중 하나만 올라가며, 교체해도 데이터베이스와 큐는 그대로 남는다.
 
+에이전트 Compose 프로파일은 `MONITOR_PROFILE=prd`로 실행되므로 이 Stack은 사용자의 로컬 Claude
+CLI 인증을 사용하지 않는다. 로컬 Claude 인증이 필요하면 `tracer-agent-ts` 저장소에서 API와
+chat/jobs/generate 워커를 모두 `MONITOR_PROFILE=local`로 직접 실행한다.
+
 ```
 node scripts/up.mjs --profile tracer      추적 스택만. 에이전트 경로는 501
 node scripts/up.mjs --profile ts          TypeScript 구현체를 함께
@@ -21,8 +25,8 @@ node scripts/down.mjs --volumes           볼륨까지 지운다
 ```
 
 `compare`는 두 접수구를 함께 세우고 게이트웨이가 `?backend=ts` · `?backend=python`으로 가른다.
-파라미터가 없으면 `ts`가 받는다. 큐 접두사가 축마다 달라 같은 실행을 두 번 집지 않으며
-원장은 하나라 두 축의 결과가 한 화면에 함께 쌓인다.
+파라미터가 없으면 어느 구현체도 임의로 고르지 않고 `400 agent_backend_ambiguous`로 거절한다.
+큐 접두사가 축마다 달라 같은 실행을 두 번 집지 않으며 원장은 하나라 두 축의 결과가 한 화면에 함께 쌓인다.
 
 **진행 중인 턴을 남긴 채 이 배치로 들어가지 않는다.** 두 대화 워커가 같은 원장을 보므로
 부팅 복구가 활성 턴을 두 번 되살린다.
