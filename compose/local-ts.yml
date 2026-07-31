@@ -1,0 +1,27 @@
+name: agent-tracer
+
+# ts 프로파일의 TypeScript 축을 사용자 구독 자격으로 실행하는 오버라이드다. 모델을 부르는
+# 워커 셋만 토큰을 받고 접수와 검증만 하는 API 는 프로파일만 받는다.
+#
+#   claude setup-token
+#   export CLAUDE_CODE_OAUTH_TOKEN=<토큰>
+#   node scripts/up.mjs --profile ts --local
+services:
+  agent-api:
+    environment:
+      MONITOR_PROFILE: local
+
+  agent-chat-worker:
+    environment:
+      MONITOR_PROFILE: local
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?claude setup-token 이 낸 값을 CLAUDE_CODE_OAUTH_TOKEN 으로 넘긴다}
+
+  agent-jobs-worker:
+    environment:
+      MONITOR_PROFILE: local
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?claude setup-token 이 낸 값을 CLAUDE_CODE_OAUTH_TOKEN 으로 넘긴다}
+
+  agent-generate-worker:
+    environment:
+      MONITOR_PROFILE: local
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?claude setup-token 이 낸 값을 CLAUDE_CODE_OAUTH_TOKEN 으로 넘긴다}

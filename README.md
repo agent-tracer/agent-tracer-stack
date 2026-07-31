@@ -68,6 +68,7 @@ node scripts/up.mjs --profile ts          # TypeScript 구현체를 함께
 node scripts/up.mjs --profile python      # Python 구현체를 함께
 node scripts/up.mjs --profile compare     # 두 구현체를 나란히
 node scripts/up.mjs --profile ts --monitoring
+node scripts/up.mjs --profile compare --local   # TypeScript 축을 사용자 구독 자격으로
 
 node scripts/doctor.mjs --profile ts      # 이미지와 합성과 상류 선언을 검사
 node scripts/doctor.mjs --profile ts --skip-images
@@ -91,7 +92,16 @@ node scripts/down.mjs --volumes           # 볼륨까지 지운다
 
 **진행 중인 대화 턴을 남긴 채 구현체를 교체하거나 `compare`로 들어가지 않습니다.** 두 대화 워커가 같은 원장과 워크플로 이력을 보므로 부팅 복구가 활성 턴을 두 번 되살립니다.
 
-에이전트 Compose 프로파일은 `MONITOR_PROFILE=prd`로 실행되므로 이 합성은 사용자의 로컬 Claude CLI 인증을 사용하지 않습니다. 로컬 Claude 인증이 필요하면 `tracer-agent-ts` 저장소에서 API와 chat·jobs·generate 워커를 모두 `MONITOR_PROFILE=local`로 직접 실행합니다.
+에이전트 Compose 프로파일은 기본적으로 `MONITOR_PROFILE=prd`로 실행됩니다. 사용자의 Claude 구독 자격으로 TypeScript 축을 실행하려면 `--local`을 씁니다. `ts`와 `compare`에서만 쓸 수 있고 다른 프로파일에서는 거절합니다.
+
+```bash
+claude setup-token
+export CLAUDE_CODE_OAUTH_TOKEN="..."
+node scripts/up.mjs --profile ts --local
+node scripts/up.mjs --profile compare --local
+```
+
+토큰은 Claude CLI를 하위 프로세스로 실행하는 chat·jobs·generate 워커만 받습니다. 접수와 검증만 하는 API는 프로파일만 받고, Python 축과 추적 서비스와 게이트웨이는 그대로입니다. `compare --local`에서도 요청은 `backend`를 지정해야 하며 지정하지 않으면 `400 agent_backend_ambiguous`입니다.
 
 ## 포트
 

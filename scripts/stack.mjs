@@ -15,6 +15,9 @@ export const PROFILES = {
 /** 계측 오버레이는 프로파일 위에 겹친다. */
 const MONITORING = "monitoring.yml";
 
+/** 사용자 구독 자격으로 TypeScript 축을 실행하는 오버레이이며 파드 이름이 프로파일마다 다르다. */
+const LOCAL = { ts: "local-ts.yml", compare: "local-compare.yml" };
+
 /** 프로파일마다 게이트웨이가 읽을 상류 선언이 다르다. */
 const UPSTREAMS = { tracer: null, ts: "ts.map", python: "python.map", compare: "compare.map" };
 
@@ -35,16 +38,28 @@ export function readVersions() {
 
 /** 프로파일과 무관하게 이 저장소가 아는 합성 전부이며 기동이 아니라 정리가 쓴다. */
 export function allComposeArgs() {
-    const files = [...new Set([...Object.values(PROFILES).flat(), MONITORING])];
+    const files = [...new Set([...Object.values(PROFILES).flat(), MONITORING, ...Object.values(LOCAL)])];
     return files.flatMap((file) => ["-f", join(root, "compose", file)]);
 }
 
-export function composeArgs(profile, withMonitoring = false) {
+/** 사용자 자격으로 실행할 수 있는 프로파일의 오버레이를 낸다. */
+export function localOverlay(profile) {
+    const file = LOCAL[profile];
+    if (file === undefined) {
+        throw new Error(
+            `--local 은 ${Object.keys(LOCAL).join(" 과 ")} 에만 쓴다. ${profile} 에는 TypeScript 축이 없다`,
+        );
+    }
+    return file;
+}
+
+export function composeArgs(profile, withMonitoring = false, withLocal = false) {
     const files = PROFILES[profile];
     if (files === undefined) {
         throw new Error(`알 수 없는 프로파일이다: ${profile}. 쓸 수 있는 것은 ${Object.keys(PROFILES).join(" · ")}`);
     }
-    const selected = withMonitoring ? [...files, MONITORING] : files;
+    // 계측은 마지막에 겹쳐야 자격 오버레이가 지운 값을 되살리지 않는다.
+    const selected = [...files, ...(withLocal ? [localOverlay(profile)] : []), ...(withMonitoring ? [MONITORING] : [])];
     return selected.flatMap((file) => ["-f", join(root, "compose", file)]);
 }
 

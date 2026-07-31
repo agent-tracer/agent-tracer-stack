@@ -53,6 +53,7 @@ node scripts/up.mjs --profile ts
 node scripts/up.mjs --profile python
 node scripts/up.mjs --profile compare
 node scripts/up.mjs --profile ts --monitoring
+node scripts/up.mjs --profile compare --local
 
 node scripts/doctor.mjs --profile ts
 node scripts/doctor.mjs --profile ts --skip-images
@@ -64,7 +65,7 @@ node scripts/down.mjs
 
 진행 중인 대화 턴이나 워크플로가 남은 상태에서 교체를 실행하지 않습니다. 두 구현체가 같은 원장과 워크플로 이력을 보므로 부팅 복구가 실행을 두 번 되살립니다. `down --volumes`는 모든 데이터 볼륨을 지웁니다.
 
-에이전트 Compose 프로파일은 `MONITOR_PROFILE=prd`로 실행되므로 사용자의 로컬 Claude CLI 인증을 사용하지 않습니다. 로컬 Claude 인증이 필요하면 `tracer-agent-ts` 저장소에서 API와 세 워커를 `MONITOR_PROFILE=local`로 직접 실행합니다.
+에이전트 Compose 프로파일은 기본적으로 `MONITOR_PROFILE=prd`로 실행됩니다. `--local`은 `ts`와 `compare`에서만 허용하며 TypeScript 축만 사용자 구독 자격으로 바꿉니다. `CLAUDE_CODE_OAUTH_TOKEN`은 chat·jobs·generate 워커만 받고 API는 프로파일만 받습니다. Python 축과 추적 서비스와 게이트웨이의 상류 선택은 바뀌지 않습니다.
 
 ## 변경 규칙
 

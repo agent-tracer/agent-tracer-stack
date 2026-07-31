@@ -3,6 +3,7 @@ import { applyGatewayProfile, composeArgs, parseProfile, readVersions } from "./
 
 const profile = parseProfile(process.argv, "tracer");
 const monitoring = process.argv.includes("--monitoring");
+const local = process.argv.includes("--local");
 applyGatewayProfile(profile);
 
 const ONE_SHOTS = ["migrate", "connect-init", "redpanda-init"];
@@ -10,7 +11,7 @@ const ONE_SHOTS = ["migrate", "connect-init", "redpanda-init"];
 function compose(stdio, ...args) {
     return spawnSync(
         "docker",
-        ["compose", ...composeArgs(profile, monitoring), ...args],
+        ["compose", ...composeArgs(profile, monitoring, local), ...args],
         { stdio, env: { ...process.env, ...readVersions() } },
     );
 }

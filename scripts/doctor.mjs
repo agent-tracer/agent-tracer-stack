@@ -14,6 +14,7 @@ import {
 
 const profile = parseProfile(process.argv, "tracer");
 const monitoring = process.argv.includes("--monitoring");
+const local = process.argv.includes("--local");
 const versions = readVersions();
 // 이미지를 만들지 않는 자리에서도 합성과 선언은 검사할 수 있다.
 const skipImages = process.argv.includes("--skip-images");
@@ -34,7 +35,7 @@ if (!skipImages) {
 
 const config = spawnSync(
     "docker",
-    ["compose", ...composeArgs(profile, monitoring), "config", "-q"],
+    ["compose", ...composeArgs(profile, monitoring, local), "config", "-q"],
     { encoding: "utf8", env: { ...process.env, ...versions } },
 );
 report(config.status === 0, `프로파일 ${profile}의 합성이 유효하다`);
