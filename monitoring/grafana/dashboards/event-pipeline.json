@@ -63,7 +63,7 @@
     {
       "id": 9, "type": "timeseries", "title": "Consumer group lag (ingest.events)",
       "gridPos": { "h": 7, "w": 8, "x": 0, "y": 17 },
-      "description": "Consumer group lag for ingest.events. A sustained climb means the projector cannot keep up with Redpanda.",
+      "description": "ingest.events를 읽는 모든 컨슈머 그룹의 지연입니다. 범례가 그룹을 나누며, 한 그룹의 지연이 이어서 오르면 그 소비자가 Redpanda를 따라가지 못하는 것입니다.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [{ "expr": "kminion_kafka_consumer_group_topic_lag{topic_name=\"ingest.events\"}", "legendFormat": "{{group_id}}" }]
     },

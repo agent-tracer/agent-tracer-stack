@@ -36,7 +36,7 @@ metrics:
 
   - metric_name: ai_jobs_attempts_sum
     type: gauge
-    help: "활성 AI 잡의 누적 실행 시도 수를 종류와 상태별로 집계한다."
+    help: "활성 AI 잡의 누적 실행 시도 수를 종류·상태·실행기·백엔드별로 집계한다."
     key_labels: [kind, status, executor, backend]
     values: [attempts_sum]
     query: |

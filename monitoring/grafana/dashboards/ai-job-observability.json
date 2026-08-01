@@ -2176,7 +2176,7 @@
           "uid": "prometheus"
         },
         "definition": "label_values(gen_ai_invoke_agent_duration_count, agent_tracer_backend)",
-        "description": "python/claude-sdk backend",
+        "description": "AI 잡을 실행한 축이며 값은 gen_ai 지표의 agent_tracer_backend 라벨에서 읽습니다.",
         "hide": 0,
         "includeAll": true,
         "label": "Backend",

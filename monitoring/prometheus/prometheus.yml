@@ -46,6 +46,7 @@ scrape_configs:
 
   # 워커 SDK(Rust core)가 노출하는 지표. schedule-to-start 지연·폴러·태스크 슬롯은
   # 워커만 알고 있어 temporal 서버 스크레이프로는 얻을 수 없다.
+  # 이 창구는 TypeScript 축의 워커가 연다. Python 축을 띄운 프로파일에서는 대상이 응답하지 않는다.
   - job_name: temporal-sdk
     metrics_path: /metrics
     static_configs:
