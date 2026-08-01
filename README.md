@@ -157,6 +157,8 @@ TEMPORAL_UI_PUBLISHED_PORT   GRAFANA_PUBLISHED_PORT      PROMETHEUS_PUBLISHED_PO
 
 ## 계측 오버레이
 
+스크레이프 대상은 프로파일이 세우는 파드만 담습니다. 목록은 기동이 스택마다 `monitoring/stacks/<프로젝트>/targets`에 놓고 Prometheus가 file 서비스 디스커버리로 읽으므로, 추적 축만 띄운 자리에서 에이전트 파드를 부르지 않습니다. 축을 교체하면 `switch`가 목록을 다시 놓고 Prometheus가 파일을 다시 읽습니다.
+
 `--monitoring`은 Grafana만 더하지 않습니다. OpenTelemetry Collector, Tempo, Loki, Alloy, Prometheus, Alertmanager, blackbox 프로브, PostgreSQL·OpenSearch·Kafka·SQL exporter를 함께 올립니다. 대시보드는 `127.0.0.1:3000`에 열립니다.
 
 ### 보존과 복구
@@ -183,6 +185,7 @@ agent-tracer-stack/
 │   ├── profiles/             프로파일별 상류 원본
 │   └── stacks/               스택마다 실행 시 생성되는 상류와 리모트 선언
 ├── monitoring/               OTel·Prometheus·Grafana·Loki·Tempo 설정
+│   └── stacks/               스택마다 실행 시 생성되는 스크레이프 대상 목록
 ├── adminer/                  Adminer 로그인 보조 설정
 ├── scripts/                  up·down·switch·doctor·conformance·pin
 └── versions.lock             애플리케이션 이미지 참조
@@ -190,7 +193,7 @@ agent-tracer-stack/
 
 ## 컨벤션과 검증
 
-Compose의 앱 이미지 태그는 파일에 직접 쓰지 않고 `versions.lock`이 갖습니다. 프로파일을 더하거나 바꿀 때는 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다. NGINX 상류는 `gateway/profiles/*.map`에 선언하고 생성 산출물인 `gateway/stacks/`를 직접 고치지 않습니다. `compare`에서 서비스와 큐와 게이트웨이 이름은 축을 분명히 담습니다.
+Compose의 앱 이미지 태그는 파일에 직접 쓰지 않고 `versions.lock`이 갖습니다. 프로파일을 더하거나 바꿀 때는 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다. NGINX 상류는 `gateway/profiles/*.map`에 선언하고 생성 산출물인 `gateway/stacks/`와 `monitoring/stacks/`를 직접 고치지 않습니다. `compare`에서 서비스와 큐와 게이트웨이 이름은 축을 분명히 담습니다.
 
 ```bash
 node --test "scripts/**/*.test.mjs"

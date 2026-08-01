@@ -18,6 +18,7 @@
 - `git status --short`로 이미 있는 변경을 확인하고 사용자 변경을 보존합니다.
 - `versions.lock`이 이미지 참조의 유일한 자리입니다.
 - `gateway/stacks/<프로젝트>`의 상류와 리모트 선언은 실행 시 생성되는 산출물입니다.
+- `monitoring/stacks/<프로젝트>/targets`의 스크레이프 대상 목록도 같습니다.
 
 ## 프로파일과 라우팅
 
@@ -80,7 +81,8 @@ node scripts/down.mjs --stack b
 - 애플리케이션 동작 변경은 해당 구현체 저장소에서 수행합니다.
 - 게이트웨이 주소·서비스명·헬스체크·환경변수를 바꾸면 영향을 받는 모든 프로파일을 확인합니다.
 - 상류 주소를 Compose 파일에 중복해 적지 않고 프로파일 선언과 `versions.lock`을 씁니다.
-- 생성 산출물인 `gateway/stacks/`를 직접 고치지 않습니다.
+- 생성 산출물인 `gateway/stacks/`와 `monitoring/stacks/`를 직접 고치지 않습니다.
+- 스크레이프 대상을 더하면 `scripts/stack.mjs`의 `scrapeTargets`에 적습니다. 프로파일이 세우지 않는 파드는 대상이 되지 않습니다.
 - 공개 포트를 더하면 `${…_PUBLISHED_PORT:-기본}` 모양으로 적습니다. 스택이 이 선언에서 기본값을 읽어 옮깁니다.
 - 프로파일을 더하거나 바꾸면 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다.
 - `compare`의 축별 큐 접두사와 축 선택 규칙을 유지합니다.
