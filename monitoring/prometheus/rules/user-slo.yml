@@ -1,0 +1,39 @@
+groups:
+  # 사용자 경로의 가용성 목표는 30일 99% 이며 오차 예산은 1% 다.
+  # 같은 소진율을 짧은 창과 긴 창이 함께 넘을 때만 발화해, 한 번 튄 실패로 호출하지 않고
+  # 예산을 실제로 태우는 동안에는 놓치지 않는다.
+  - name: user-slo
+    rules:
+      - record: user_path:availability:ratio_rate5m
+        expr: avg by (instance) (avg_over_time(probe_success{job="gateway-probe"}[5m]))
+
+      - record: user_path:availability:ratio_rate30m
+        expr: avg by (instance) (avg_over_time(probe_success{job="gateway-probe"}[30m]))
+
+      - record: user_path:availability:ratio_rate1h
+        expr: avg by (instance) (avg_over_time(probe_success{job="gateway-probe"}[1h]))
+
+      - record: user_path:availability:ratio_rate6h
+        expr: avg by (instance) (avg_over_time(probe_success{job="gateway-probe"}[6h]))
+
+      # 14.4배로 태우면 30일 예산이 2일 만에 사라진다.
+      - alert: UserPathErrorBudgetBurningFast
+        expr: |
+          (1 - user_path:availability:ratio_rate5m) > 0.144
+          and on (instance)
+          (1 - user_path:availability:ratio_rate1h) > 0.144
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }}의 가용성 예산이 빠르게 소진됨"
+
+      # 6배로 태우면 30일 예산이 5일 만에 사라진다.
+      - alert: UserPathErrorBudgetBurningSlow
+        expr: |
+          (1 - user_path:availability:ratio_rate30m) > 0.06
+          and on (instance)
+          (1 - user_path:availability:ratio_rate6h) > 0.06
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}의 가용성 예산이 이어서 소진됨"
