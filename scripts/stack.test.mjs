@@ -188,16 +188,33 @@ test("에이전트 축이 선 프로파일이 그 축의 대상을 함께 부른
     }
 });
 
-test("워커 지표 창구는 그것을 여는 축의 파드만 부른다", () => {
-    assert.deepEqual(
-        scrapeTargets("ts")["temporal-sdk"].map((entry) => entry.labels.service),
-        ["agent-chat-worker", "agent-jobs-worker", "agent-generate-worker"],
-    );
-    assert.deepEqual(
-        scrapeTargets("compare")["temporal-sdk"].map((entry) => entry.labels.service),
-        ["agent-chat-worker-ts", "agent-jobs-worker-ts", "agent-generate-worker-ts"],
-    );
-    assert.deepEqual(scrapeTargets("python")["temporal-sdk"], []);
+test("워커 지표 창구는 워커 셋만 부르고 접수 창구는 부르지 않는다", () => {
+    for (const profile of ["ts", "python"]) {
+        assert.deepEqual(
+            scrapeTargets(profile)["temporal-sdk"].map((entry) => entry.labels.service),
+            ["agent-chat-worker", "agent-jobs-worker", "agent-generate-worker"],
+        );
+    }
+    assert.deepEqual(scrapeTargets("compare")["temporal-sdk"].map((entry) => entry.labels.service), [
+        "agent-chat-worker-ts",
+        "agent-jobs-worker-ts",
+        "agent-generate-worker-ts",
+        "agent-chat-worker-python",
+        "agent-jobs-worker-python",
+        "agent-generate-worker-python",
+    ]);
+    for (const profile of Object.keys(PROFILES)) {
+        const called = scrapeTargets(profile)["temporal-sdk"].flatMap((entry) => entry.targets);
+        assert.equal(called.some((target) => target.startsWith("agent-api")), false);
+    }
+});
+
+test("두 축의 창구가 계약이 정한 한 포트를 연다", () => {
+    for (const profile of ["ts", "python", "compare"]) {
+        for (const entry of scrapeTargets(profile)["temporal-sdk"]) {
+            assert.equal(entry.targets[0].endsWith(":9466"), true);
+        }
+    }
 });
 
 test("스크레이프 대상이 모두 그 프로파일이 세우는 파드다", () => {

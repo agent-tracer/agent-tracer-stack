@@ -223,13 +223,19 @@ export function applyGatewayProfile(profile, stack = null) {
     writeFileSync(join(remotes, "agent-web.map"), readFileSync(join(root, "gateway", "profiles", "agent-web.map")));
 }
 
-/** 워커 SDK 의 지표 창구를 여는 파드이며 프로파일마다 이름이 다르고 없는 프로파일도 있다. */
+/** 워커 SDK 의 지표 창구를 여는 파드이며 축의 라벨은 워커가 직접 싣는다. */
 const SDK_WORKERS = {
     tracer: [],
     ts: ["agent-chat-worker", "agent-jobs-worker", "agent-generate-worker"],
-    // Python 축은 워커에 지표 창구가 없다. 부르면 대상이 계속 down 이다.
-    python: [],
-    compare: ["agent-chat-worker-ts", "agent-jobs-worker-ts", "agent-generate-worker-ts"],
+    python: ["agent-chat-worker", "agent-jobs-worker", "agent-generate-worker"],
+    compare: [
+        "agent-chat-worker-ts",
+        "agent-jobs-worker-ts",
+        "agent-generate-worker-ts",
+        "agent-chat-worker-python",
+        "agent-jobs-worker-python",
+        "agent-generate-worker-python",
+    ],
 };
 
 const SDK_METRICS_PORT = 9466;
