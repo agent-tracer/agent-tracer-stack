@@ -7,15 +7,20 @@ import {
     composeArgs,
     gatewayUpstreamSource,
     parseProfile,
+    parseStack,
+    projectArgs,
     readVersions,
+    stackEnv,
+    stackProject,
     upstreamFallback,
     upstreamNames,
 } from "./stack.mjs";
 
 const profile = parseProfile(process.argv, "tracer");
+const stack = parseStack(process.argv);
 const monitoring = process.argv.includes("--monitoring");
 const local = process.argv.includes("--local");
-const versions = readVersions();
+const environment = stackEnv(stack);
 // 이미지를 만들지 않는 자리에서도 합성과 선언은 검사할 수 있다.
 const skipImages = process.argv.includes("--skip-images");
 let failed = 0;
@@ -27,7 +32,8 @@ function report(ok, message) {
 
 // 태그가 가리키는 이미지가 실제로 있어야 합성이 뜬다.
 if (!skipImages) {
-    for (const [key, reference] of Object.entries(versions)) {
+    for (const key of Object.keys(readVersions())) {
+        const reference = environment[key];
         const found = spawnSync("docker", ["image", "inspect", reference], { stdio: "ignore" }).status === 0;
         report(found, `${key} = ${reference}`);
     }
@@ -35,10 +41,10 @@ if (!skipImages) {
 
 const config = spawnSync(
     "docker",
-    ["compose", ...composeArgs(profile, monitoring, local), "config", "-q"],
-    { encoding: "utf8", env: { ...process.env, ...versions } },
+    ["compose", ...projectArgs(stack), ...composeArgs(profile, monitoring, local), "config", "-q"],
+    { encoding: "utf8", env: { ...process.env, ...environment } },
 );
-report(config.status === 0, `프로파일 ${profile}의 합성이 유효하다`);
+report(config.status === 0, `프로파일 ${profile}의 합성이 ${stackProject(stack)}에서 유효하다`);
 if (config.status !== 0) console.error(config.stderr);
 
 // 얹힌 선언은 기동이 프로파일에 맞춰 다시 쓰므로, 진단은 이 프로파일이 얹을 원본이 있는지를 본다.

@@ -68,7 +68,7 @@ services:
     command:
       - redpanda start --smp 1 --overprovisioned --node-id 0
         --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
-        --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:19092
+        --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:${REDPANDA_PUBLISHED_PORT:-19092}
     ports: ["${REDPANDA_PUBLISHED_PORT:-19092}:9092"]
     volumes: [redpanda-data:/var/lib/redpanda/data]
     healthcheck:
@@ -187,8 +187,8 @@ services:
   gateway:
     image: ${AGENT_TRACER_GATEWAY_IMAGE}
     volumes:
-      - ../gateway/upstreams.d:/etc/nginx/upstreams.d:ro
-      - ../gateway/remotes.d:/etc/nginx/remotes.d:ro
+      - ${GATEWAY_DECLARATIONS:-../gateway/stacks/agent-tracer}/upstreams.d:/etc/nginx/upstreams.d:ro
+      - ${GATEWAY_DECLARATIONS:-../gateway/stacks/agent-tracer}/remotes.d:/etc/nginx/remotes.d:ro
     ports: ["${GATEWAY_PUBLISHED_PORT:-127.0.0.1:3847}:3847"]
     depends_on: [ingest-api, tracer-api, tracer-web]
 

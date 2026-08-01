@@ -28,6 +28,9 @@ jobs:
       - name: 계측 오버레이
         run: node scripts/doctor.mjs --profile ts --monitoring --skip-images
 
+      - name: 나란히 선 스택
+        run: node scripts/doctor.mjs --profile ts --stack b --skip-images
+
   gateway:
     runs-on: ubuntu-latest
     steps:
@@ -54,7 +57,7 @@ jobs:
             node -e "import('./scripts/stack.mjs').then((m) => m.applyGatewayProfile('${profile}'))"
             docker run --rm \
               -v "$PWD/probe.conf:/etc/nginx/nginx.conf:ro" \
-              -v "$PWD/gateway/upstreams.d:/etc/nginx/upstreams.d:ro" \
-              -v "$PWD/gateway/remotes.d:/etc/nginx/remotes.d:ro" \
+              -v "$PWD/gateway/stacks/agent-tracer/upstreams.d:/etc/nginx/upstreams.d:ro" \
+              -v "$PWD/gateway/stacks/agent-tracer/remotes.d:/etc/nginx/remotes.d:ro" \
               nginx:1.27-alpine nginx -t
           done

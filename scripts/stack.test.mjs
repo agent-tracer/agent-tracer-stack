@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { allComposeArgs, composeArgs, upstreamCatalog, upstreamFallback, upstreamNames } from "./stack.mjs";
+import {
+    allComposeArgs,
+    composeArgs,
+    gatewayDeclarations,
+    parseStack,
+    projectArgs,
+    publishedPorts,
+    stackEnv,
+    stackProject,
+    upstreamCatalog,
+    upstreamFallback,
+    upstreamNames,
+} from "./stack.mjs";
 
 const composeFiles = (...args) =>
     composeArgs(...args)
@@ -61,6 +73,56 @@ test("에이전트 축이 있는 프로파일에는 에이전트 감시를 함�
 test("--local 을 주지 않으면 합성이 그대로다", () => {
     assert.deepEqual(composeFiles("compare", false, false), composeFiles("compare"));
     assert.equal(composeFiles("ts").includes("local-ts.yml"), false);
+});
+
+test("이름을 적지 않으면 프로젝트와 포트와 태그가 선언 그대로다", () => {
+    const stack = parseStack(["node", "scripts/up.mjs", "--profile", "tracer"]);
+    assert.equal(stack, null);
+    assert.deepEqual(projectArgs(stack), ["-p", "agent-tracer"]);
+    const env = stackEnv(stack);
+    assert.equal(env.AGENT_TRACER_GATEWAY_IMAGE, "agent-tracer/gateway:latest");
+    assert.equal(env.GATEWAY_PUBLISHED_PORT, undefined);
+});
+
+test("스택 이름이 프로젝트를 옮긴다", () => {
+    const stack = parseStack(["node", "scripts/up.mjs", "--stack", "b"]);
+    assert.equal(stack, "b");
+    assert.equal(stackProject(stack), "agent-tracer-b");
+    assert.deepEqual(projectArgs(stack), ["-p", "agent-tracer-b"]);
+});
+
+test("선언되지 않은 스택 이름을 거절한다", () => {
+    for (const name of ["c", "B", "agent tracer", "../b", undefined]) {
+        assert.throws(() => parseStack(["node", "scripts/up.mjs", "--stack", name]), /--stack/);
+    }
+});
+
+test("스택이 공개 포트를 오프셋만큼 옮기고 바인드 주소를 지킨다", () => {
+    const env = stackEnv("b");
+    assert.equal(env.GATEWAY_PUBLISHED_PORT, "127.0.0.1:3947");
+    assert.equal(env.EVENT_DB_PUBLISHED_PORT, "5532");
+    assert.equal(env.TEMPORAL_PUBLISHED_PORT, "7333");
+    assert.equal(env.GRAFANA_PUBLISHED_PORT, "127.0.0.1:3100");
+});
+
+test("공개 포트를 여는 선언 전부가 스택을 따라 옮겨진다", () => {
+    const env = stackEnv("b");
+    for (const variable of publishedPorts().keys()) {
+        assert.equal(typeof env[variable], "string", `${variable}가 옮겨지지 않았다`);
+    }
+    assert.equal(publishedPorts().has("GATEWAY_PUBLISHED_PORT"), true);
+});
+
+test("스택이 이미지 태그를 갈라 빌드가 서로를 덮지 않는다", () => {
+    const env = stackEnv("b");
+    assert.equal(env.AGENT_TRACER_GATEWAY_IMAGE, "agent-tracer/gateway:latest-b");
+    assert.equal(env.TRACER_AGENT_PYTHON_IMAGE, "tracer-agent-python:latest-b");
+});
+
+test("게이트웨이 선언이 스택마다 다른 자리에 놓인다", () => {
+    assert.equal(gatewayDeclarations(null).endsWith("gateway/stacks/agent-tracer"), true);
+    assert.equal(gatewayDeclarations("b").endsWith("gateway/stacks/agent-tracer-b"), true);
+    assert.equal(stackEnv("b").GATEWAY_DECLARATIONS, gatewayDeclarations("b"));
 });
 
 test("정리가 자격 오버레이까지 아는 합성을 쓴다", () => {

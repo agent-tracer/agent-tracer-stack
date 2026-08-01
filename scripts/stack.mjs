@@ -4,6 +4,68 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+/** 나란히 세울 수 있는 스택의 이름과 그 스택이 공개 포트에 더하는 값이다. */
+const STACKS = { b: 100 };
+
+/** 이름을 적지 않은 호출이 쓰는 프로젝트이며 포트와 태그가 선언된 기본값 그대로다. */
+const PROJECT = "agent-tracer";
+
+/** 스택 이름은 선언된 것만 받는다. 프로젝트 이름이 컨테이너 이름의 접두가 되므로 기동에서야 드러나면 늦다. */
+export function parseStack(argv) {
+    const index = argv.indexOf("--stack");
+    if (index < 0) return null;
+    const name = argv[index + 1];
+    if (name === undefined || !Object.hasOwn(STACKS, name)) {
+        throw new Error(`--stack 이 받는 이름은 ${Object.keys(STACKS).join(" · ")} 뿐이다`);
+    }
+    return name;
+}
+
+export function stackProject(stack) {
+    return stack === null ? PROJECT : `${PROJECT}-${stack}`;
+}
+
+/** 프로젝트 이름은 -f 로 고른 합성의 name 선언을 이기므로 스택을 가르는 자리가 여기 하나다. */
+export function projectArgs(stack) {
+    return ["-p", stackProject(stack)];
+}
+
+/** 게이트웨이가 읽는 선언의 자리이며 스택마다 갈려야 나란히 선 스택이 서로의 상류를 덮지 않는다. */
+export function gatewayDeclarations(stack) {
+    return join(root, "gateway", "stacks", stackProject(stack));
+}
+
+const PUBLISHED_PORT = /\$\{([A-Z0-9_]+_PUBLISHED_PORT):-(?:([\d.]+):)?(\d+)\}/g;
+
+/** 공개 포트의 기본값은 compose 선언이 갖는다. 스택은 그 값을 옮길 뿐 컨테이너 안쪽 포트는 두고 간다. */
+export function publishedPorts() {
+    const directory = join(root, "compose");
+    const found = new Map();
+    for (const file of readdirSync(directory)) {
+        if (!file.endsWith(".yml")) continue;
+        const text = readFileSync(join(directory, file), "utf8");
+        for (const [, variable, address, port] of text.matchAll(PUBLISHED_PORT)) {
+            found.set(variable, { address: address ?? null, port: Number(port) });
+        }
+    }
+    return found;
+}
+
+/** compose 가 받는 값 전부이며 이미지 태그와 공개 포트와 선언 자리를 스택 하나가 함께 옮긴다. */
+export function stackEnv(stack) {
+    const versions = readVersions();
+    const declarations = { GATEWAY_DECLARATIONS: gatewayDeclarations(stack) };
+    if (stack === null) return { ...versions, ...declarations };
+
+    const offset = STACKS[stack];
+    const images = Object.entries(versions).map(([key, reference]) => [key, `${reference}-${stack}`]);
+    const ports = [...publishedPorts()].map(([key, { address, port }]) => [
+        key,
+        address === null ? `${port + offset}` : `${address}:${port + offset}`,
+    ]);
+    return { ...Object.fromEntries(images), ...Object.fromEntries(ports), ...declarations };
+}
+
 /** 프로파일이 고르는 compose 파일 목록이며 앞에서 뒤로 겹친다. */
 export const PROFILES = {
     tracer: ["tracer.yml"],
@@ -108,9 +170,9 @@ export function upstreamCatalog(text) {
 }
 
 /** 게이트웨이가 읽는 선언을 프로파일에 맞춰 다시 쓴다. 에이전트가 없으면 비워 둔다. */
-export function applyGatewayProfile(profile) {
-    const upstreams = join(root, "gateway", "upstreams.d");
-    const remotes = join(root, "gateway", "remotes.d");
+export function applyGatewayProfile(profile, stack = null) {
+    const upstreams = join(gatewayDeclarations(stack), "upstreams.d");
+    const remotes = join(gatewayDeclarations(stack), "remotes.d");
     clear(upstreams);
     clear(remotes);
 

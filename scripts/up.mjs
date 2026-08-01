@@ -1,18 +1,19 @@
 import { spawnSync } from "node:child_process";
-import { applyGatewayProfile, composeArgs, parseProfile, readVersions } from "./stack.mjs";
+import { applyGatewayProfile, composeArgs, parseProfile, parseStack, projectArgs, stackEnv } from "./stack.mjs";
 
 const profile = parseProfile(process.argv, "tracer");
+const stack = parseStack(process.argv);
 const monitoring = process.argv.includes("--monitoring");
 const local = process.argv.includes("--local");
-applyGatewayProfile(profile);
+applyGatewayProfile(profile, stack);
 
 const ONE_SHOTS = ["migrate", "connect-init", "redpanda-init"];
 
 function compose(stdio, ...args) {
     return spawnSync(
         "docker",
-        ["compose", ...composeArgs(profile, monitoring, local), ...args],
-        { stdio, env: { ...process.env, ...readVersions() } },
+        ["compose", ...projectArgs(stack), ...composeArgs(profile, monitoring, local), ...args],
+        { stdio, env: { ...process.env, ...stackEnv(stack) } },
     );
 }
 
