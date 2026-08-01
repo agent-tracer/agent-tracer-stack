@@ -2,22 +2,28 @@ global:
   resolve_timeout: 5m
 
 route:
-  group_by: ["alertname", "service"]
+  # alertname 은 언제나 있고 job 은 모든 scrape 대상이 갖는다. service 는 일부 규칙에만 붙어 묶음이 갈린다.
+  group_by: ["alertname", "job"]
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
   receiver: default
   routes:
     - matchers: ["severity=critical"]
-      receiver: default
+      receiver: critical
       repeat_interval: 1h
 
 receivers:
-  # 수신처가 비어 있어 발화한 알림은 어디로도 통지되지 않는다. 채널 선택은 배포자의 몫이라
-  # 기본값을 두지 않는다. webhook_configs 주석을 풀고 url을 채우면 통지가 시작된다.
+  # 주소는 배포가 얹는 파일이 갖는다. 저장소에 적으면 배포마다 다른 값을 담을 수 없다.
   - name: default
-    # webhook_configs:
-    #   - url: "https://hooks.slack.com/services/REPLACE/ME"
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhook-url
+        send_resolved: true
+
+  - name: critical
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhook-url-critical
+        send_resolved: true
 
 inhibit_rules:
   - source_matchers: ["alertname=ServiceDown"]
