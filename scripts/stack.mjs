@@ -35,6 +35,11 @@ export function gatewayDeclarations(stack) {
     return join(root, "gateway", "stacks", stackProject(stack));
 }
 
+/** 프로메테우스가 읽는 대상 목록의 자리이며 게이트웨이 선언과 같은 이유로 스택마다 갈린다. */
+export function scrapeDeclarations(stack) {
+    return join(root, "monitoring", "stacks", stackProject(stack), "targets");
+}
+
 const PUBLISHED_PORT = /\$\{([A-Z0-9_]+_PUBLISHED_PORT):-(?:([\d.]+):)?(\d+)\}/g;
 
 /** 공개 포트의 기본값은 compose 선언이 갖는다. 스택은 그 값을 옮길 뿐 컨테이너 안쪽 포트는 두고 간다. */
@@ -84,7 +89,10 @@ export function teardownEnv(stack, required = requiredVariables()) {
 /** compose 가 받는 값 전부이며 이미지 태그와 공개 포트와 선언 자리를 스택 하나가 함께 옮긴다. */
 export function stackEnv(stack) {
     const versions = readVersions();
-    const declarations = { GATEWAY_DECLARATIONS: gatewayDeclarations(stack) };
+    const declarations = {
+        GATEWAY_DECLARATIONS: gatewayDeclarations(stack),
+        PROMETHEUS_TARGETS: scrapeDeclarations(stack),
+    };
     if (stack === null) return { ...versions, ...declarations };
 
     const offset = STACKS[stack];
@@ -163,7 +171,7 @@ export function composeArgs(profile, withMonitoring = false, withLocal = false) 
     return selected.flatMap((file) => ["-f", join(root, "compose", file)]);
 }
 
-const GENERATED = [".map", ".catalog"];
+const GENERATED = [".map", ".catalog", ".json"];
 
 function clear(directory) {
     mkdirSync(directory, { recursive: true });
@@ -213,6 +221,64 @@ export function applyGatewayProfile(profile, stack = null) {
     writeFileSync(join(upstreams, "agent.map"), declaration);
     writeFileSync(join(upstreams, "agent.catalog"), upstreamCatalog(declaration));
     writeFileSync(join(remotes, "agent-web.map"), readFileSync(join(root, "gateway", "profiles", "agent-web.map")));
+}
+
+/** 워커 SDK 의 지표 창구를 여는 파드이며 프로파일마다 이름이 다르고 없는 프로파일도 있다. */
+const SDK_WORKERS = {
+    tracer: [],
+    ts: ["agent-chat-worker", "agent-jobs-worker", "agent-generate-worker"],
+    // Python 축은 워커에 지표 창구가 없다. 부르면 대상이 계속 down 이다.
+    python: [],
+    compare: ["agent-chat-worker-ts", "agent-jobs-worker-ts", "agent-generate-worker-ts"],
+};
+
+const SDK_METRICS_PORT = 9466;
+
+/** 프로파일이 세우는 파드만 대상이 된다. 없는 파드를 부르면 경보가 늘 울려 아무도 보지 않는다. */
+export function scrapeTargets(profile) {
+    if (PROFILES[profile] === undefined) {
+        throw new Error(`알 수 없는 프로파일이다: ${profile}. 쓸 수 있는 것은 ${Object.keys(PROFILES).join(" · ")}`);
+    }
+    const agent = MONITORS_AGENT.has(profile);
+    return {
+        "temporal-sdk": SDK_WORKERS[profile].map((service) => ({
+            targets: [`${service}:${SDK_METRICS_PORT}`],
+            labels: { service },
+        })),
+        temporal: agent ? [{ targets: ["temporal:9090"] }] : [],
+        postgres: [
+            { targets: ["postgres-exporter-event:9187"], labels: { database: "runtime" } },
+            { targets: ["postgres-exporter-tracer:9187"], labels: { database: "tracer" } },
+            ...(agent ? [{ targets: ["postgres-exporter-temporal:9187"], labels: { database: "temporal" } }] : []),
+        ],
+        "sql-exporter": [
+            { targets: ["sql-exporter:9399"], labels: { database: "runtime" } },
+            ...(agent ? [{ targets: ["sql-exporter-agent:9399"], labels: { database: "agent" } }] : []),
+        ],
+    };
+}
+
+const SERVICE_DECLARATION = /^ {2}([a-z][a-z0-9-]*):$/gm;
+
+/** 프로파일과 계측 오버레이가 함께 세우는 파드의 이름이며 대상은 이 안에서만 나온다. */
+export function composeServices(profile) {
+    const files = [...PROFILES[profile], ...monitoringFiles(profile)];
+    const found = new Set();
+    for (const file of files) {
+        const text = readFileSync(join(root, "compose", file), "utf8");
+        const services = text.slice(text.indexOf("\nservices:"));
+        for (const [, name] of services.matchAll(SERVICE_DECLARATION)) found.add(name);
+    }
+    return found;
+}
+
+/** 프로메테우스가 읽는 대상 목록을 프로파일에 맞춰 다시 쓴다. 대상이 없는 잡은 빈 목록을 갖는다. */
+export function applyMonitoringProfile(profile, stack = null) {
+    const directory = scrapeDeclarations(stack);
+    clear(directory);
+    for (const [job, targets] of Object.entries(scrapeTargets(profile))) {
+        writeFileSync(join(directory, `${job}.json`), `${JSON.stringify(targets, null, 2)}\n`);
+    }
 }
 
 export function parseProfile(argv, fallback) {

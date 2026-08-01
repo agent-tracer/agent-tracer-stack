@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import {
     composeArgs,
+    composeServices,
     gatewayUpstreamSource,
     parseProfile,
     parseStack,
     projectArgs,
     readVersions,
+    scrapeTargets,
     stackEnv,
     stackProject,
     upstreamFallback,
@@ -70,5 +72,16 @@ if (declared) {
             : `프로파일 ${profile}은 파라미터와 무관하게 한 상류로 보낸다`,
     );
 }
+
+// 없는 파드를 부르는 대상은 기동에서 down 으로만 드러나고 그때는 경보가 이미 울린다.
+const services = composeServices(profile);
+const unknown = Object.entries(scrapeTargets(profile)).flatMap(([job, entries]) =>
+    entries
+        .flatMap((entry) => entry.targets)
+        .filter((target) => !services.has(target.split(":")[0]))
+        .map((target) => `${job} → ${target}`),
+);
+report(unknown.length === 0, `프로파일 ${profile}의 스크레이프 대상이 모두 이 프로파일의 파드다`);
+if (unknown.length > 0) console.error(unknown.join("\n"));
 
 process.exit(failed === 0 ? 0 : 1);

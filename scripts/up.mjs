@@ -1,11 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { applyGatewayProfile, composeArgs, parseProfile, parseStack, projectArgs, stackEnv } from "./stack.mjs";
+import {
+    applyGatewayProfile,
+    applyMonitoringProfile,
+    composeArgs,
+    parseProfile,
+    parseStack,
+    projectArgs,
+    stackEnv,
+} from "./stack.mjs";
 
 const profile = parseProfile(process.argv, "tracer");
 const stack = parseStack(process.argv);
 const monitoring = process.argv.includes("--monitoring");
 const local = process.argv.includes("--local");
 applyGatewayProfile(profile, stack);
+applyMonitoringProfile(profile, stack);
 
 const ONE_SHOTS = ["migrate", "connect-init", "redpanda-init"];
 

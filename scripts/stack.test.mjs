@@ -3,11 +3,15 @@ import test from "node:test";
 import {
     allComposeArgs,
     composeArgs,
+    composeServices,
     gatewayDeclarations,
     parseStack,
     projectArgs,
+    PROFILES,
     publishedPorts,
     requiredVariables,
+    scrapeDeclarations,
+    scrapeTargets,
     requiredVariablesIn,
     stackEnv,
     teardownEnv,
@@ -165,4 +169,57 @@ test("정리가 자격 오버레이까지 아는 합성을 쓴다", () => {
     const files = allComposeArgs().map((value) => value.split("/").at(-1));
     assert.equal(files.includes("local-ts.yml"), true);
     assert.equal(files.includes("local-compare.yml"), true);
+});
+
+test("추적 축만 세운 프로파일은 에이전트 대상을 부르지 않는다", () => {
+    const targets = scrapeTargets("tracer");
+    assert.deepEqual(targets["temporal-sdk"], []);
+    assert.deepEqual(targets.temporal, []);
+    assert.deepEqual(targets.postgres.map((entry) => entry.labels.database), ["runtime", "tracer"]);
+    assert.deepEqual(targets["sql-exporter"].map((entry) => entry.labels.database), ["runtime"]);
+});
+
+test("에이전트 축이 선 프로파일이 그 축의 대상을 함께 부른다", () => {
+    for (const profile of ["ts", "python", "compare"]) {
+        const targets = scrapeTargets(profile);
+        assert.deepEqual(targets.temporal, [{ targets: ["temporal:9090"] }]);
+        assert.equal(targets.postgres.length, 3);
+        assert.equal(targets["sql-exporter"].length, 2);
+    }
+});
+
+test("워커 지표 창구는 그것을 여는 축의 파드만 부른다", () => {
+    assert.deepEqual(
+        scrapeTargets("ts")["temporal-sdk"].map((entry) => entry.labels.service),
+        ["agent-chat-worker", "agent-jobs-worker", "agent-generate-worker"],
+    );
+    assert.deepEqual(
+        scrapeTargets("compare")["temporal-sdk"].map((entry) => entry.labels.service),
+        ["agent-chat-worker-ts", "agent-jobs-worker-ts", "agent-generate-worker-ts"],
+    );
+    assert.deepEqual(scrapeTargets("python")["temporal-sdk"], []);
+});
+
+test("스크레이프 대상이 모두 그 프로파일이 세우는 파드다", () => {
+    for (const profile of Object.keys(PROFILES)) {
+        const services = composeServices(profile);
+        for (const [job, entries] of Object.entries(scrapeTargets(profile))) {
+            for (const entry of entries) {
+                for (const target of entry.targets) {
+                    const [host] = target.split(":");
+                    assert.equal(services.has(host), true, `${profile}의 ${job}이 없는 파드 ${host}를 부른다`);
+                }
+            }
+        }
+    }
+});
+
+test("대상 목록이 스택마다 다른 자리에 놓인다", () => {
+    assert.equal(scrapeDeclarations(null).endsWith("monitoring/stacks/agent-tracer/targets"), true);
+    assert.equal(scrapeDeclarations("b").endsWith("monitoring/stacks/agent-tracer-b/targets"), true);
+    assert.equal(stackEnv("b").PROMETHEUS_TARGETS, scrapeDeclarations("b"));
+});
+
+test("선언되지 않은 프로파일의 대상을 만들지 않는다", () => {
+    assert.throws(() => scrapeTargets("없는프로파일"), /알 수 없는 프로파일/);
 });

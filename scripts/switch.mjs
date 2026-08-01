@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { applyGatewayProfile, composeArgs, parseStack, projectArgs, stackEnv } from "./stack.mjs";
+import {
+    applyGatewayProfile,
+    applyMonitoringProfile,
+    composeArgs,
+    parseStack,
+    projectArgs,
+    stackEnv,
+} from "./stack.mjs";
 
 const target = process.argv[2];
 if (target !== "ts" && target !== "python") {
@@ -23,6 +30,8 @@ const services = ["agent-api", "agent-chat-worker", "agent-jobs-worker", "agent-
 compose(other, "rm", "-sf", ...services);
 
 applyGatewayProfile(target, stack);
+// 교체는 워커 파드의 이름을 바꾸므로 스크레이프 대상도 함께 옮긴다. file_sd 는 파일을 다시 읽는다.
+applyMonitoringProfile(target, stack);
 const up = compose(target, "up", "-d");
 
 // nginx는 include를 설정을 읽을 때만 훑으므로 선언을 바꾸면 다시 읽혀야 한다.

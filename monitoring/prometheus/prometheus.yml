@@ -15,6 +15,7 @@ alerting:
 rule_files:
   - /etc/prometheus/rules/*.yml
 
+# 프로파일이 세우는 파드만 대상이 되도록 file_sd 목록은 기동이 스택마다 놓는다.
 scrape_configs:
   - job_name: prometheus
     static_configs:
@@ -46,16 +47,11 @@ scrape_configs:
 
   # 워커 SDK(Rust core)가 노출하는 지표. schedule-to-start 지연·폴러·태스크 슬롯은
   # 워커만 알고 있어 temporal 서버 스크레이프로는 얻을 수 없다.
-  # 이 창구는 TypeScript 축의 워커가 연다. Python 축을 띄운 프로파일에서는 대상이 응답하지 않는다.
+  # 이 창구를 여는 파드는 프로파일마다 다르므로 대상은 기동이 놓는다.
   - job_name: temporal-sdk
     metrics_path: /metrics
-    static_configs:
-      - targets: ["agent-chat-worker:9466"]
-        labels: { service: agent-chat-worker }
-      - targets: ["agent-jobs-worker:9466"]
-        labels: { service: agent-jobs-worker }
-      - targets: ["agent-generate-worker:9466"]
-        labels: { service: agent-generate-worker }
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/temporal-sdk.json"]
 
   # 내부 창구가 모두 정상이어도 라우팅과 자산 전달이 깨질 수 있어 사용자와 같은 방향에서 두드린다.
   - job_name: gateway-probe
@@ -75,13 +71,8 @@ scrape_configs:
         replacement: blackbox-exporter:9115
 
   - job_name: postgres
-    static_configs:
-      - targets: ["postgres-exporter-event:9187"]
-        labels: { database: runtime }
-      - targets: ["postgres-exporter-tracer:9187"]
-        labels: { database: tracer }
-      - targets: ["postgres-exporter-temporal:9187"]
-        labels: { database: temporal }
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/postgres.json"]
 
   - job_name: redpanda
     metrics_path: /public_metrics
@@ -104,15 +95,12 @@ scrape_configs:
 
   # event-db 원장 seq/row 카운트(파이프라인 유실 갭 계산용).
   - job_name: sql-exporter
-    static_configs:
-      - targets: ["sql-exporter:9399"]
-        labels: { database: runtime }
-      - targets: ["sql-exporter-agent:9399"]
-        labels: { database: agent }
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/sql-exporter.json"]
 
   - job_name: temporal
-    static_configs:
-      - targets: ["temporal:9090"]
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/temporal.json"]
 
   - job_name: tempo
     static_configs:
