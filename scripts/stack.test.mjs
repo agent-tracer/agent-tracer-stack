@@ -7,7 +7,11 @@ import {
     parseStack,
     projectArgs,
     publishedPorts,
+    requiredVariables,
+    requiredVariablesIn,
     stackEnv,
+    teardownEnv,
+    TEARDOWN_PLACEHOLDER,
     stackProject,
     upstreamCatalog,
     upstreamFallback,
@@ -123,6 +127,38 @@ test("게이트웨이 선언이 스택마다 다른 자리에 놓인다", () => 
     assert.equal(gatewayDeclarations(null).endsWith("gateway/stacks/agent-tracer"), true);
     assert.equal(gatewayDeclarations("b").endsWith("gateway/stacks/agent-tracer-b"), true);
     assert.equal(stackEnv("b").GATEWAY_DECLARATIONS, gatewayDeclarations("b"));
+});
+
+test("기동이 값을 요구하는 변수를 합성 선언에서 읽는다", () => {
+    const declaration = `      GF_SECURITY_ADMIN_PASSWORD: \${GRAFANA_ADMIN_PASSWORD:?암호를 배포가 정한다}\n      PORT: \${SOME_PORT:-3000}\n`;
+    assert.deepEqual(requiredVariablesIn(declaration), ["GRAFANA_ADMIN_PASSWORD"]);
+    assert.deepEqual(requiredVariablesIn("이 선언에는 요구가 없다"), []);
+});
+
+test("내리는 길이 기동의 요구를 그대로 받지 않는다", () => {
+    const environment = teardownEnv(null);
+    for (const variable of requiredVariables()) {
+        assert.equal(
+            typeof environment[variable] === "string" && environment[variable].length > 0,
+            true,
+            `${variable}가 채워지지 않아 내리는 길이 막힌다`,
+        );
+    }
+});
+
+test("내리는 길이 요구된 변수의 자리를 채운다", () => {
+    const environment = teardownEnv(null, ["GRAFANA_ADMIN_PASSWORD"]);
+    assert.equal(environment.GRAFANA_ADMIN_PASSWORD, TEARDOWN_PLACEHOLDER);
+    assert.equal(environment.AGENT_TRACER_GATEWAY_IMAGE, "agent-tracer/gateway:latest");
+});
+
+test("내리는 길이 배포가 준 값을 자리표시자로 덮지 않는다", () => {
+    process.env.GRAFANA_ADMIN_PASSWORD = "배포가 준 값";
+    try {
+        assert.equal(teardownEnv(null, ["GRAFANA_ADMIN_PASSWORD"]).GRAFANA_ADMIN_PASSWORD, "배포가 준 값");
+    } finally {
+        delete process.env.GRAFANA_ADMIN_PASSWORD;
+    }
 });
 
 test("정리가 자격 오버레이까지 아는 합성을 쓴다", () => {

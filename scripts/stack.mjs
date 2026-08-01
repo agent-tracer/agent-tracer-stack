@@ -51,6 +51,36 @@ export function publishedPorts() {
     return found;
 }
 
+const REQUIRED_VARIABLE = /\$\{([A-Z0-9_]+):\?/g;
+
+/** 기동이 값을 요구하는 변수의 이름이며 선언한 자리는 compose 하나다. */
+export function requiredVariablesIn(text) {
+    return [...text.matchAll(REQUIRED_VARIABLE)].map(([, variable]) => variable);
+}
+
+export function requiredVariables() {
+    const directory = join(root, "compose");
+    const found = new Set();
+    for (const file of readdirSync(directory)) {
+        if (!file.endsWith(".yml")) continue;
+        for (const variable of requiredVariablesIn(readFileSync(join(directory, file), "utf8"))) {
+            found.add(variable);
+        }
+    }
+    return found;
+}
+
+/** 내리는 길은 합성이 해석되기만 하면 되므로 기동이 요구하는 값을 요구하지 않는다. */
+export const TEARDOWN_PLACEHOLDER = "unused-on-teardown";
+
+export function teardownEnv(stack, required = requiredVariables()) {
+    const filled = [...required].map((variable) => [
+        variable,
+        process.env[variable] ?? TEARDOWN_PLACEHOLDER,
+    ]);
+    return { ...stackEnv(stack), ...Object.fromEntries(filled) };
+}
+
 /** compose 가 받는 값 전부이며 이미지 태그와 공개 포트와 선언 자리를 스택 하나가 함께 옮긴다. */
 export function stackEnv(stack) {
     const versions = readVersions();
