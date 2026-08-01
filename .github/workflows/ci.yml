@@ -34,6 +34,16 @@ jobs:
       - name: 나란히 선 스택
         run: node scripts/doctor.mjs --profile ts --stack b --skip-images
 
+      # 스크레이프 선언과 경보 규칙은 문법이 맞아도 Prometheus 가 거절하면 감시가 서지 않는다.
+      - name: 감시 선언
+        run: |
+          docker run --rm --entrypoint sh \
+            -v "$PWD/monitoring/prometheus:/w" prom/prometheus:v3.13.0 \
+            -c 'promtool check config /w/prometheus.yml && promtool check rules /w/rules/*.yml'
+          docker run --rm --entrypoint /bin/blackbox_exporter \
+            -v "$PWD/monitoring/blackbox:/w" prom/blackbox-exporter:v0.25.0 \
+            --config.file=/w/blackbox.yml --config.check
+
   gateway:
     runs-on: ubuntu-latest
     steps:
