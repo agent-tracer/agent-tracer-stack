@@ -17,7 +17,7 @@
 
 - `git status --short`로 이미 있는 변경을 확인하고 사용자 변경을 보존합니다.
 - `versions.lock`이 이미지 참조의 유일한 자리입니다.
-- `gateway/upstreams.d`와 `gateway/remotes.d`는 실행 시 생성되는 산출물입니다.
+- `gateway/stacks/<프로젝트>`의 상류와 리모트 선언은 실행 시 생성되는 산출물입니다.
 
 ## 프로파일과 라우팅
 
@@ -61,7 +61,13 @@ node scripts/conformance.mjs
 node scripts/switch.mjs ts
 node scripts/switch.mjs python
 node scripts/down.mjs
+
+node scripts/pin.mjs --stack b
+node scripts/up.mjs --profile ts --stack b
+node scripts/down.mjs --stack b
 ```
+
+`--stack b`는 프로젝트를 `agent-tracer-b`로, 공개 포트를 100만큼, 이미지 태그를 `-b`로 옮깁니다. 그 태그의 이미지는 `scripts/pin.mjs`가 만들어 둔 이미지에 붙입니다. 스택 하나가 3.7 GiB를 쓰므로 셋을 함께 띄우지 않습니다.
 
 진행 중인 대화 턴이나 워크플로가 남은 상태에서 교체를 실행하지 않습니다. 두 구현체가 같은 원장과 워크플로 이력을 보므로 부팅 복구가 실행을 두 번 되살립니다. `down --volumes`는 모든 데이터 볼륨을 지웁니다.
 
@@ -72,7 +78,8 @@ node scripts/down.mjs
 - 애플리케이션 동작 변경은 해당 구현체 저장소에서 수행합니다.
 - 게이트웨이 주소·서비스명·헬스체크·환경변수를 바꾸면 영향을 받는 모든 프로파일을 확인합니다.
 - 상류 주소를 Compose 파일에 중복해 적지 않고 프로파일 선언과 `versions.lock`을 씁니다.
-- 생성 산출물인 `gateway/upstreams.d`와 `gateway/remotes.d`를 직접 고치지 않습니다.
+- 생성 산출물인 `gateway/stacks/`를 직접 고치지 않습니다.
+- 공개 포트를 더하면 `${…_PUBLISHED_PORT:-기본}` 모양으로 적습니다. 스택이 이 선언에서 기본값을 읽어 옮깁니다.
 - 프로파일을 더하거나 바꾸면 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다.
 - `compare`의 축별 큐 접두사와 축 선택 규칙을 유지합니다.
 - 계측을 바꾸면 Collector·Tempo·Loki·Alloy·Prometheus·Alertmanager와 exporter 의존을 함께 확인합니다.

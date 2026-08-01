@@ -58,6 +58,8 @@ docker build -t tracer-agent-python:latest "$WORKSPACE/tracer-agent/tracer-agent
 cd "$WORKSPACE/agent-tracer-stack"
 ```
 
+둘째 스택은 이름이 붙은 태그를 읽습니다. `node scripts/pin.mjs --stack b`가 지금 만들어진 이미지에 그 이름을 붙이므로, 이후의 빌드가 `:latest`를 다시 써도 둘째 스택이 보는 이미지는 그대로입니다.
+
 각 디렉터리는 서로 다른 git 저장소입니다. clone 위치가 다르면 `WORKSPACE` 아래의 네 경로만 실제 위치로 바꿉니다. 배포에서는 `versions.lock`의 `:latest`를 릴리스 태그나 digest로 고정합니다. 이 파일은 이미지 참조를 한곳에 모으지만 이미지 내용의 불변성까지 보장하지는 않습니다.
 
 ## 실행과 운영
@@ -77,6 +79,10 @@ node scripts/switch.mjs python            # 원장과 큐를 그대로 두고 �
 node scripts/switch.mjs ts
 node scripts/down.mjs                     # 전부 내린다. 데이터는 남는다
 node scripts/down.mjs --volumes           # 볼륨까지 지운다
+
+node scripts/pin.mjs --stack b            # 둘째 스택이 읽을 이미지 이름을 고정
+node scripts/up.mjs --profile ts --stack b   # 프로젝트와 포트와 태그를 갈아 나란히
+node scripts/down.mjs --stack b
 ```
 
 `tracer` 프로파일에는 에이전트 상류가 없으므로 `/api/agent/*`가 `501`을 돌려주고 `/agent/*` 화면은 제공되지 않습니다.
@@ -119,6 +125,8 @@ node scripts/up.mjs --profile compare --local
 | `127.0.0.1:3000` | Grafana | `--monitoring` |
 | `127.0.0.1:9090` | Prometheus | `--monitoring` |
 
+표의 주소는 이름 없는 스택의 것입니다. `--stack b`는 프로젝트를 `agent-tracer-b`로 두고 공개 포트를 100만큼 옮기며 이미지 태그에 `-b`를 붙이므로, 게이트웨이는 `127.0.0.1:3947`에 열립니다. 컨테이너 안쪽 포트는 그대로입니다.
+
 브라우저가 보는 것은 게이트웨이 하나입니다. Adminer는 로그인 화면의 목록에서 서버를 고르며 기본 자격 증명은 Compose의 `POSTGRES_USER`와 `POSTGRES_PASSWORD`, 곧 `root` / `root`입니다. 개발이 아닌 자리에서는 운영 자격 증명으로 바꿉니다.
 
 ```text
@@ -154,17 +162,16 @@ agent-tracer-stack/
 ├── compose/                  tracer·agent·compare·monitoring 합성
 ├── gateway/
 │   ├── profiles/             프로파일별 상류 원본
-│   ├── upstreams.d/          실행 시 생성되는 상류 선언
-│   └── remotes.d/            에이전트 화면 리모트 선언
+│   └── stacks/               스택마다 실행 시 생성되는 상류와 리모트 선언
 ├── monitoring/               OTel·Prometheus·Grafana·Loki·Tempo 설정
 ├── adminer/                  Adminer 로그인 보조 설정
-├── scripts/                  up·down·switch·doctor·conformance
+├── scripts/                  up·down·switch·doctor·conformance·pin
 └── versions.lock             애플리케이션 이미지 참조
 ```
 
 ## 컨벤션과 검증
 
-Compose의 앱 이미지 태그는 파일에 직접 쓰지 않고 `versions.lock`이 갖습니다. 프로파일을 더하거나 바꿀 때는 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다. NGINX 상류는 `gateway/profiles/*.map`에 선언하고 생성 산출물인 `gateway/upstreams.d`와 `gateway/remotes.d`를 직접 고치지 않습니다. `compare`에서 서비스와 큐와 게이트웨이 이름은 축을 분명히 담습니다.
+Compose의 앱 이미지 태그는 파일에 직접 쓰지 않고 `versions.lock`이 갖습니다. 프로파일을 더하거나 바꿀 때는 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다. NGINX 상류는 `gateway/profiles/*.map`에 선언하고 생성 산출물인 `gateway/stacks/`를 직접 고치지 않습니다. `compare`에서 서비스와 큐와 게이트웨이 이름은 축을 분명히 담습니다.
 
 ```bash
 node --test "scripts/**/*.test.mjs"
