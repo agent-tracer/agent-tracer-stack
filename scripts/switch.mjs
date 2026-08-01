@@ -15,12 +15,14 @@ if (target !== "ts" && target !== "python") {
 }
 const other = target === "ts" ? "python" : "ts";
 const stack = parseStack(process.argv);
+// 계측을 켜고 띄운 스택은 교체에서도 그것을 겹쳐야 파드가 계측 없는 정의로 되살아나지 않는다.
+const monitoring = process.argv.includes("--monitoring");
 const env = { ...process.env, ...stackEnv(stack) };
 
 function compose(profile, ...args) {
     return spawnSync(
         "docker",
-        ["compose", ...projectArgs(stack), ...composeArgs(profile), ...args],
+        ["compose", ...projectArgs(stack), ...composeArgs(profile, monitoring), ...args],
         { stdio: "inherit", env },
     );
 }

@@ -61,6 +61,7 @@ node scripts/doctor.mjs --profile ts --skip-images
 node scripts/conformance.mjs
 node scripts/switch.mjs ts
 node scripts/switch.mjs python
+node scripts/switch.mjs ts --monitoring
 node scripts/down.mjs
 
 node scripts/pin.mjs --stack b
@@ -69,6 +70,8 @@ node scripts/down.mjs --stack b
 ```
 
 `--stack b`는 프로젝트를 `agent-tracer-b`로, 공개 포트를 100만큼, 이미지 태그를 `-b`로 옮깁니다. 그 태그의 이미지는 `scripts/pin.mjs`가 만들어 둔 이미지에 붙입니다. 스택 하나가 3.7 GiB를 쓰므로 셋을 함께 띄우지 않습니다.
+
+계측을 켜고 띄운 스택을 교체할 때는 `switch`에도 `--monitoring`을 줍니다. 주지 않으면 계측이 얹혀 있던 파드가 계측 없는 정의로 되살아납니다.
 
 진행 중인 대화 턴이나 워크플로가 남은 상태에서 교체를 실행하지 않습니다. 두 구현체가 같은 원장과 워크플로 이력을 보므로 부팅 복구가 실행을 두 번 되살립니다. `down --volumes`는 모든 데이터 볼륨을 지웁니다.
 

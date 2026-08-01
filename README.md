@@ -77,6 +77,7 @@ node scripts/doctor.mjs --profile ts --skip-images
 node scripts/conformance.mjs              # 두 구현체의 적합성 스위트를 나란히 실행
 node scripts/switch.mjs python            # 원장과 큐를 그대로 두고 구현체만 교체
 node scripts/switch.mjs ts
+node scripts/switch.mjs ts --monitoring    # 계측을 켜고 띄운 스택에서는 이것을 쓴다
 node scripts/down.mjs                     # 전부 내린다. 데이터는 남는다
 node scripts/down.mjs --volumes           # 볼륨까지 지운다
 
@@ -157,7 +158,7 @@ TEMPORAL_UI_PUBLISHED_PORT   GRAFANA_PUBLISHED_PORT      PROMETHEUS_PUBLISHED_PO
 
 ## 계측 오버레이
 
-스크레이프 대상은 프로파일이 세우는 파드만 담습니다. 목록은 기동이 스택마다 `monitoring/stacks/<프로젝트>/targets`에 놓고 Prometheus가 file 서비스 디스커버리로 읽으므로, 추적 축만 띄운 자리에서 에이전트 파드를 부르지 않습니다. 축을 교체하면 `switch`가 목록을 다시 놓고 Prometheus가 파일을 다시 읽습니다.
+스크레이프 대상은 프로파일이 세우는 파드만 담습니다. 목록은 기동이 스택마다 `monitoring/stacks/<프로젝트>/targets`에 놓고 Prometheus가 file 서비스 디스커버리로 읽으므로, 추적 축만 띄운 자리에서 에이전트 파드를 부르지 않습니다. 축을 교체하면 `switch`가 목록을 다시 놓고 Prometheus가 파일을 다시 읽습니다. 계측을 켜고 띄운 스택에서는 `switch`에도 `--monitoring`을 주어야 파드가 계측 없는 정의로 되살아나지 않습니다.
 
 `--monitoring`은 Grafana만 더하지 않습니다. OpenTelemetry Collector, Tempo, Loki, Alloy, Prometheus, Alertmanager, blackbox 프로브, PostgreSQL·OpenSearch·Kafka·SQL exporter를 함께 올립니다. 대시보드는 `127.0.0.1:3000`에 열립니다.
 
