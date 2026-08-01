@@ -42,7 +42,20 @@ test("자격을 쓸 수 없는 프로파일에서 --local 을 거절한다", () 
 });
 
 test("계측을 자격 오버레이보다 뒤에 겹친다", () => {
-    assert.deepEqual(composeFiles("compare", true, true).slice(-2), ["local-compare.yml", "monitoring.yml"]);
+    assert.deepEqual(composeFiles("compare", true, true).slice(-3), [
+        "local-compare.yml", "monitoring.yml", "monitoring-agent.yml",
+    ]);
+});
+
+test("에이전트 축이 없는 프로파일에는 에이전트 감시를 겹치지 않는다", () => {
+    assert.deepEqual(composeFiles("tracer", true).slice(-1), ["monitoring.yml"]);
+    assert.equal(composeFiles("tracer", true).includes("monitoring-agent.yml"), false);
+});
+
+test("에이전트 축이 있는 프로파일에는 에이전트 감시를 함께 겹친다", () => {
+    for (const profile of ["ts", "python", "compare"]) {
+        assert.deepEqual(composeFiles(profile, true).slice(-2), ["monitoring.yml", "monitoring-agent.yml"]);
+    }
 });
 
 test("--local 을 주지 않으면 합성이 그대로다", () => {

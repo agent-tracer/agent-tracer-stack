@@ -12,8 +12,16 @@ export const PROFILES = {
     compare: ["tracer.yml", "agent-infra.yml", "compare.yml", "agent-web.yml"],
 };
 
-/** 계측 오버레이는 프로파일 위에 겹친다. */
+/** 계측 오버레이는 프로파일 위에 겹치며 에이전트 조각은 그 축이 있는 프로파일에만 겹친다. */
 const MONITORING = "monitoring.yml";
+const AGENT_MONITORING = "monitoring-agent.yml";
+
+/** 감시가 에이전트 축의 파드와 데이터베이스를 함께 보는 프로파일이다. */
+const MONITORS_AGENT = new Set(["ts", "python", "compare"]);
+
+function monitoringFiles(profile) {
+    return MONITORS_AGENT.has(profile) ? [MONITORING, AGENT_MONITORING] : [MONITORING];
+}
 
 /** 사용자 구독 자격으로 TypeScript 축을 실행하는 오버레이이며 파드 이름이 프로파일마다 다르다. */
 const LOCAL = { ts: "local-ts.yml", compare: "local-compare.yml" };
@@ -38,7 +46,7 @@ export function readVersions() {
 
 /** 프로파일과 무관하게 이 저장소가 아는 합성 전부이며 기동이 아니라 정리가 쓴다. */
 export function allComposeArgs() {
-    const files = [...new Set([...Object.values(PROFILES).flat(), MONITORING, ...Object.values(LOCAL)])];
+    const files = [...new Set([...Object.values(PROFILES).flat(), MONITORING, AGENT_MONITORING, ...Object.values(LOCAL)])];
     return files.flatMap((file) => ["-f", join(root, "compose", file)]);
 }
 
@@ -59,7 +67,7 @@ export function composeArgs(profile, withMonitoring = false, withLocal = false) 
         throw new Error(`알 수 없는 프로파일이다: ${profile}. 쓸 수 있는 것은 ${Object.keys(PROFILES).join(" · ")}`);
     }
     // 계측은 마지막에 겹쳐야 자격 오버레이가 지운 값을 되살리지 않는다.
-    const selected = [...files, ...(withLocal ? [localOverlay(profile)] : []), ...(withMonitoring ? [MONITORING] : [])];
+    const selected = [...files, ...(withLocal ? [localOverlay(profile)] : []), ...(withMonitoring ? monitoringFiles(profile) : [])];
     return selected.flatMap((file) => ["-f", join(root, "compose", file)]);
 }
 

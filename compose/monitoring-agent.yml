@@ -1,0 +1,27 @@
+name: agent-tracer
+
+# 에이전트 축이 있을 때만 성립하는 감시 조각이다. tracer 프로파일에는 이 파일을 겹치지 않는다.
+services:
+
+  temporal:
+    environment:
+      PROMETHEUS_ENDPOINT: 0.0.0.0:9090
+
+  postgres-exporter-temporal:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
+    environment:
+      DATA_SOURCE_NAME: "postgresql://temporal:temporal@temporal-db:5432/temporal?sslmode=disable"
+    depends_on:
+      temporal-db: { condition: service_healthy }
+
+  # 잡의 적체와 고착과 시도 횟수는 agent-db의 현재 상태가 진실 원천이다.
+  sql-exporter-agent:
+    image: burningalchemist/sql_exporter:0.24.2
+    command:
+      - "-config.file=/etc/sql_exporter/agent-ai-jobs.yml"
+      - "-config.data-source-name=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root}@agent-db:5432/agent?sslmode=disable"
+    volumes:
+      - ../monitoring/sql-exporter:/etc/sql_exporter:ro
+    depends_on:
+      agent-db: { condition: service_healthy }
+

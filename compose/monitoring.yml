@@ -31,10 +31,6 @@ services:
     depends_on:
       otel-collector: { condition: service_started }
 
-  temporal:
-    environment:
-      PROMETHEUS_ENDPOINT: 0.0.0.0:9090
-
   # jmx_prometheus_javaagent를 Connect JVM에 얹어 별도 프로세스 없이 컨테이너 안에서 노출한다.
   connect:
     image: agent-tracer/connect-jmx:2.7.3.Final
@@ -115,6 +111,9 @@ services:
     command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
     volumes:
       - ../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # 통지 주소는 배포가 얹는다. 값을 주지 않으면 저장소의 loopback 기본값이 얹혀 통지가 나가지 않는 것이 보인다.
+      - ${ALERT_WEBHOOK_URL_FILE:-../monitoring/alertmanager/webhook-url}:/etc/alertmanager/webhook-url:ro
+      - ${ALERT_CRITICAL_WEBHOOK_URL_FILE:-${ALERT_WEBHOOK_URL_FILE:-../monitoring/alertmanager/webhook-url}}:/etc/alertmanager/webhook-url-critical:ro
       - alertmanager-data:/alertmanager
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
@@ -139,13 +138,6 @@ services:
     depends_on:
       tracer-db: { condition: service_healthy }
 
-  postgres-exporter-temporal:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
-    environment:
-      DATA_SOURCE_NAME: "postgresql://temporal:temporal@temporal-db:5432/temporal?sslmode=disable"
-    depends_on:
-      temporal-db: { condition: service_healthy }
-
   opensearch-exporter:
     image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.10.0
     command:
@@ -166,17 +158,6 @@ services:
       - ../monitoring/sql-exporter:/etc/sql_exporter:ro
     depends_on:
       event-db: { condition: service_healthy }
-
-  # 잡의 적체와 고착과 시도 횟수는 agent-db의 현재 상태가 진실 원천이다.
-  sql-exporter-agent:
-    image: burningalchemist/sql_exporter:0.24.2
-    command:
-      - "-config.file=/etc/sql_exporter/agent-ai-jobs.yml"
-      - "-config.data-source-name=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-root}@agent-db:5432/agent?sslmode=disable"
-    volumes:
-      - ../monitoring/sql-exporter:/etc/sql_exporter:ro
-    depends_on:
-      agent-db: { condition: service_healthy }
 
   # 소비자 그룹의 지연과 생산-소비 왕복을 재며 단일 브로커라 파티션 재분배는 끈다.
   kminion:
