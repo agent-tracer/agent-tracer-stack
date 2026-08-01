@@ -67,9 +67,12 @@ services:
     image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
     command:
       - redpanda start --smp 1 --overprovisioned --node-id 0
+        --memory ${REDPANDA_MEMORY:-512M} --reserve-memory ${REDPANDA_RESERVE_MEMORY:-0M}
         --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
         --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:${REDPANDA_PUBLISHED_PORT:-19092}
     ports: ["${REDPANDA_PUBLISHED_PORT:-19092}:9092"]
+    # Seastar 는 부팅에 --memory 만큼의 풀을 먼저 잡으므로 상한은 그 값 위에 여유를 두고 선다.
+    mem_limit: ${REDPANDA_MEM_LIMIT:-768m}
     volumes: [redpanda-data:/var/lib/redpanda/data]
     healthcheck:
       test: ["CMD-SHELL", "rpk cluster health --exit-when-healthy"]
@@ -104,7 +107,10 @@ services:
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
       CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      # 이미지가 이 값을 KAFKA_HEAP_OPTS 로 넘긴다. 주지 않으면 상한이 2G 다.
+      HEAP_OPTS: ${CONNECT_HEAP_OPTS:--Xms256M -Xmx512M}
     ports: ["${CONNECT_PUBLISHED_PORT:-8083}:8083"]
+    mem_limit: ${CONNECT_MEM_LIMIT:-768m}
 
   # 커넥터 선언은 추적 저장소가 소유하며 이 원샷이 그 이미지를 그대로 실행한다.
   connect-init:
@@ -118,9 +124,11 @@ services:
     environment:
       discovery.type: single-node
       plugins.security.disabled: "true"
-      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms256m -Xmx256m}
       OPENSEARCH_INITIAL_ADMIN_PASSWORD: Monitor!Local1
     ports: ["${OPENSEARCH_PUBLISHED_PORT:-9200}:9200"]
+    # 힙 밖의 native 영역과 mmap 이 힙의 두 배를 쓰므로 상한은 색인이 자랄 자리까지 둔다.
+    mem_limit: ${OPENSEARCH_MEM_LIMIT:-1g}
     volumes: [opensearch-data:/usr/share/opensearch/data]
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
