@@ -26,6 +26,7 @@ groups:
         annotations:
           summary: "사용자 경로 {{ $labels.instance }}가 응답하지 않음"
 
+      # 워커 SDK 가 지속 시간을 초로 내보내므로 임계값과 패널 단위가 초 하나로 선다.
       - alert: TemporalActivityScheduleToStartHigh
         expr: histogram_quantile(0.95, sum by (le) (rate(temporal_activity_schedule_to_start_latency_bucket[5m]))) > 5
         for: 5m
