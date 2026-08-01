@@ -8,12 +8,12 @@ groups:
         annotations:
           summary: "{{ $labels.service }} 이벤트루프 사용률 90% 초과"
 
-      # http_server_duration 단위는 ms(구 stable semconv)다. 초 환산 없이 그대로 비교한다.
+      # 비율이라 단위와 무관하며 상태 코드는 계측이 내는 이름 그대로 읽는다.
       - alert: HttpServerErrorRateHigh
         expr: |
-          sum by (service) (rate(http_server_duration_count{http_status_code=~"5.."}[5m]))
+          sum by (service) (rate(http_server_request_duration_count{http_response_status_code=~"5.."}[5m]))
           /
-          sum by (service) (rate(http_server_duration_count[5m])) > 0.05
+          sum by (service) (rate(http_server_request_duration_count[5m])) > 0.05
         for: 5m
         labels: { severity: critical }
         annotations:

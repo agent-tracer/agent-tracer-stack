@@ -65,7 +65,7 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(http_server_duration_count, service)",
+        "definition": "label_values(http_server_request_duration_count, service)",
         "hide": 0,
         "includeAll": true,
         "label": "Application service",
@@ -73,7 +73,7 @@
         "name": "service",
         "options": [],
         "query": {
-          "query": "label_values(http_server_duration_count, service)",
+          "query": "label_values(http_server_request_duration_count, service)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -274,7 +274,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "(sum(rate(http_server_duration_count{service=~\"$service\",http_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_duration_count{service=~\"$service\"}[$__rate_interval])), 0.000001)) or vector(0)",
+          "expr": "(sum(rate(http_server_request_duration_count{service=~\"$service\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_request_duration_count{service=~\"$service\"}[$__rate_interval])), 0.000001)) or vector(0)",
           "instant": true,
           "legendFormat": "5xx ratio",
           "range": false,
@@ -371,7 +371,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (service) (rate(http_server_duration_count{service=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum by (service) (rate(http_server_request_duration_count{service=~\"$service\"}[$__rate_interval]))",
           "instant": false,
           "legendFormat": "{{service}}",
           "range": true,
@@ -395,12 +395,12 @@
       "id": 8,
       "title": "HTTP latency p95",
       "type": "timeseries",
-      "description": "구 stable HTTP semconv histogram의 p95 지연. 이 저장소의 http_server_duration 단위는 밀리초다.",
+      "description": "HTTP 서버 지연의 p95 이며 계측이 초로 낸다.",
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_duration_bucket{service=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_request_duration_bucket{service=~\"$service\"}[$__rate_interval])))",
           "instant": false,
           "legendFormat": "{{service}} p95",
           "range": true,
@@ -420,7 +420,7 @@
               {"color": "red", "value": 1000}
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -436,7 +436,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (service) (rate(http_server_duration_count{service=~\"$service\",http_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service) (rate(http_server_duration_count{service=~\"$service\"}[$__rate_interval])), 0.000001)",
+          "expr": "sum by (service) (rate(http_server_request_duration_count{service=~\"$service\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service) (rate(http_server_request_duration_count{service=~\"$service\"}[$__rate_interval])), 0.000001)",
           "instant": false,
           "legendFormat": "{{service}}",
           "range": true,

@@ -14,7 +14,7 @@
       "gridPos": { "h": 7, "w": 8, "x": 0, "y": 1 },
       "description": "ingest-api ingest HTTP request rate split by status code. A growing 4xx/5xx share means clients (the local collection daemon) cannot land events.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "sum by (http_status_code) (rate(http_server_duration_count{service=\"ingest-api\"}[1m]))", "legendFormat": "{{http_status_code}}" }],
+      "targets": [{ "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_count{service=\"ingest-api\"}[1m]))", "legendFormat": "{{http_response_status_code}}" }],
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
     },
     {
@@ -23,11 +23,11 @@
       "description": "ingest-api ingest HTTP handler latency percentiles. Sustained p95/p99 growth means ingest is slowing down under load, risking daemon-side request timeouts.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p50" },
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p95" },
-        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p99" }
+        { "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_request_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_bucket{service=\"ingest-api\"}[5m])))", "legendFormat": "p99" }
       ],
-      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] }
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
     },
     {
       "id": 4, "type": "timeseries", "title": "event-db ledger max seq (growth rate)",

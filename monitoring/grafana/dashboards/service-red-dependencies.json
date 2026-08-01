@@ -62,7 +62,7 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(http_server_duration_count, service)",
+        "definition": "label_values(http_server_request_duration_count, service)",
         "hide": 0,
         "includeAll": true,
         "label": "HTTP service",
@@ -70,7 +70,7 @@
         "name": "app_service",
         "options": [],
         "query": {
-          "query": "label_values(http_server_duration_count, service)",
+          "query": "label_values(http_server_request_duration_count, service)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -90,7 +90,7 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(http_server_duration_count{service=~\"$app_service\"}, http_route)",
+        "definition": "label_values(http_server_request_duration_count{service=~\"$app_service\"}, http_route)",
         "hide": 0,
         "includeAll": true,
         "label": "HTTP route",
@@ -98,7 +98,7 @@
         "name": "route",
         "options": [],
         "query": {
-          "query": "label_values(http_server_duration_count{service=~\"$app_service\"}, http_route)",
+          "query": "label_values(http_server_request_duration_count{service=~\"$app_service\"}, http_route)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -118,7 +118,7 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(http_server_duration_count{service=~\"$app_service\",http_route=~\"$route\"}, http_method)",
+        "definition": "label_values(http_server_request_duration_count{service=~\"$app_service\",http_route=~\"$route\"}, http_request_method)",
         "hide": 0,
         "includeAll": true,
         "label": "HTTP method",
@@ -126,7 +126,7 @@
         "name": "method",
         "options": [],
         "query": {
-          "query": "label_values(http_server_duration_count{service=~\"$app_service\",http_route=~\"$route\"}, http_method)",
+          "query": "label_values(http_server_request_duration_count{service=~\"$app_service\",http_route=~\"$route\"}, http_request_method)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -226,7 +226,7 @@
       "id": 1,
       "title": "HTTP server RED",
       "type": "row",
-      "description": "실제 http_server_duration_* histogram의 service, http_route, http_method, http_status_code 라벨로 요청량·오류·지연을 분석한다.",
+      "description": "http_server_request_duration_* histogram의 service, http_route, http_request_method, http_response_status_code 라벨로 요청량·오류·지연을 분석한다.",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -246,9 +246,9 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (service, http_method, http_route) (rate(http_server_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval]))",
+          "expr": "sum by (service, http_request_method, http_route) (rate(http_server_request_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\"}[$__rate_interval]))",
           "instant": false,
-          "legendFormat": "{{service}} {{http_method}} {{http_route}}",
+          "legendFormat": "{{service}} {{http_request_method}} {{http_route}}",
           "range": true,
           "refId": "A"
         }
@@ -319,7 +319,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (service) (rate(http_server_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\",http_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service) (rate(http_server_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval])), 0.000001)",
+          "expr": "sum by (service) (rate(http_server_request_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service) (rate(http_server_request_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\"}[$__rate_interval])), 0.000001)",
           "instant": false,
           "legendFormat": "{{service}}",
           "range": true,
@@ -393,7 +393,7 @@
       "id": 4,
       "title": "HTTP latency quantiles",
       "type": "timeseries",
-      "description": "선택 범위 전체의 p50/p95/p99 서버 지연. http_server_duration histogram은 밀리초 단위다.",
+      "description": "선택 범위 전체의 p50/p95/p99 서버 지연이며 계측이 초로 낸다.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -401,7 +401,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le, service) (rate(http_server_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le, service) (rate(http_server_request_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\"}[$__rate_interval])))",
           "instant": false,
           "legendFormat": "{{service}} p50",
           "range": true,
@@ -409,7 +409,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_request_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\"}[$__rate_interval])))",
           "instant": false,
           "legendFormat": "{{service}} p95",
           "range": true,
@@ -417,7 +417,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le, service) (rate(http_server_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le, service) (rate(http_server_request_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\"}[$__rate_interval])))",
           "instant": false,
           "legendFormat": "{{service}} p99",
           "range": true,
@@ -459,7 +459,7 @@
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -498,9 +498,9 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (http_status_code) (rate(http_server_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval]))",
+          "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_count{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\"}[$__rate_interval]))",
           "instant": false,
-          "legendFormat": "HTTP {{http_status_code}}",
+          "legendFormat": "HTTP {{http_response_status_code}}",
           "range": true,
           "refId": "A"
         }
@@ -570,9 +570,9 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "topk(10, histogram_quantile(0.95, sum by (le, service, http_method, http_route) (rate(http_server_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_method=~\"$method\"}[$__rate_interval]))))",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, service, http_request_method, http_route) (rate(http_server_request_duration_bucket{service=~\"$app_service\",http_route=~\"$route\",http_request_method=~\"$method\"}[$__rate_interval]))))",
           "instant": true,
-          "legendFormat": "{{service}} {{http_method}} {{http_route}}",
+          "legendFormat": "{{service}} {{http_request_method}} {{http_route}}",
           "range": false,
           "refId": "A"
         }
@@ -600,7 +600,7 @@
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
