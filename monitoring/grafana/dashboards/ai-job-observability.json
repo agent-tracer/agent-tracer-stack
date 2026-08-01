@@ -1861,11 +1861,11 @@
               },
               {
                 "color": "orange",
-                "value": 1000
+                "value": 1
               },
               {
                 "color": "red",
-                "value": 5000
+                "value": 5
               }
             ]
           },
@@ -1971,11 +1971,11 @@
               },
               {
                 "color": "orange",
-                "value": 1000
+                "value": 1
               },
               {
                 "color": "red",
-                "value": 5000
+                "value": 5
               }
             ]
           },
