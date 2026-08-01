@@ -1,4 +1,6 @@
 groups:
+  # 수집 경로의 버스트와 재시도는 정상 동작이므로, 관측 창보다 긴 for 를 두어
+  # 한 번 튄 유실이 아니라 이어지는 유실만 발화한다.
   - name: telemetry-pipeline
     rules:
       - alert: RuntimeSpanFailureRateHigh
@@ -19,85 +21,107 @@ groups:
 
       - alert: OtlpReceiverRefusedSignals
         expr: |
-          sum(increase(otelcol_receiver_refused_spans[10m]))
-          + sum(increase(otelcol_receiver_refused_log_records[10m]))
-          + sum(increase(otelcol_receiver_refused_metric_points[10m])) > 0
-        for: 0m
+          (
+            (sum(increase(otelcol_receiver_refused_spans[10m])) or vector(0))
+            + (sum(increase(otelcol_receiver_refused_log_records[10m])) or vector(0))
+            + (sum(increase(otelcol_receiver_refused_metric_points[10m])) or vector(0))
+          ) > 10
+          and
+          (
+            (
+              (sum(increase(otelcol_receiver_refused_spans[10m])) or vector(0))
+              + (sum(increase(otelcol_receiver_refused_log_records[10m])) or vector(0))
+              + (sum(increase(otelcol_receiver_refused_metric_points[10m])) or vector(0))
+            )
+            /
+            clamp_min(
+              (sum(increase(otelcol_receiver_accepted_spans[10m])) or vector(0))
+              + (sum(increase(otelcol_receiver_accepted_log_records[10m])) or vector(0))
+              + (sum(increase(otelcol_receiver_accepted_metric_points[10m])) or vector(0))
+              + (sum(increase(otelcol_receiver_refused_spans[10m])) or vector(0))
+              + (sum(increase(otelcol_receiver_refused_log_records[10m])) or vector(0))
+              + (sum(increase(otelcol_receiver_refused_metric_points[10m])) or vector(0)), 1)
+          ) > 0.01
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "OTel Collector가 OTLP 신호를 거부함"
+          summary: "OTel Collector가 OTLP 신호의 1% 이상을 이어서 거부함"
 
       - alert: OtlpExporterSignalLoss
         expr: |
-          (sum(increase(otelcol_exporter_send_failed_spans[10m])) or vector(0))
-          + (sum(increase(otelcol_exporter_send_failed_log_records[10m])) or vector(0))
-          + (sum(increase(otelcol_exporter_send_failed_metric_points[10m])) or vector(0))
-          + (sum(increase(otelcol_exporter_enqueue_failed_spans[10m])) or vector(0))
-          + (sum(increase(otelcol_exporter_enqueue_failed_log_records[10m])) or vector(0))
-          + (sum(increase(otelcol_exporter_enqueue_failed_metric_points[10m])) or vector(0)) > 0
-        for: 0m
+          (
+            (sum(increase(otelcol_exporter_send_failed_spans[10m])) or vector(0))
+            + (sum(increase(otelcol_exporter_send_failed_log_records[10m])) or vector(0))
+            + (sum(increase(otelcol_exporter_send_failed_metric_points[10m])) or vector(0))
+            + (sum(increase(otelcol_exporter_enqueue_failed_spans[10m])) or vector(0))
+            + (sum(increase(otelcol_exporter_enqueue_failed_log_records[10m])) or vector(0))
+            + (sum(increase(otelcol_exporter_enqueue_failed_metric_points[10m])) or vector(0))
+          ) > 10
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "OTel Collector exporter가 accepted 신호를 유실함"
+          summary: "OTel Collector exporter가 accepted 신호를 이어서 유실함"
 
       - alert: TempoDiscardingSpans
-        expr: sum by (reason) (increase(tempo_discarded_spans_total[10m])) > 0
-        for: 0m
+        expr: sum by (reason) (increase(tempo_discarded_spans_total[10m])) > 10
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "Tempo가 span을 폐기함: {{ $labels.reason }}"
+          summary: "Tempo가 span을 이어서 폐기함: {{ $labels.reason }}"
 
       - alert: TempoMetricsGeneratorDiscardingSpans
-        expr: sum by (processor, reason) (increase(tempo_metrics_generator_spans_discarded_total{reason!="span_metrics_filtered"}[10m])) > 0
-        for: 0m
+        expr: sum by (processor, reason) (increase(tempo_metrics_generator_spans_discarded_total{reason!="span_metrics_filtered"}[10m])) > 10
+        for: 15m
         labels: { severity: warning }
         annotations:
-          summary: "Tempo {{ $labels.processor }}가 span을 제외함: {{ $labels.reason }}"
+          summary: "Tempo {{ $labels.processor }}가 span을 이어서 제외함: {{ $labels.reason }}"
 
+      # remote-write 자기 지표는 Tempo 컨테이너의 창구에서 나오므로 job 이 tempo 다.
       - alert: TempoMetricRemoteWriteFailures
         expr: |
           (sum(increase(prometheus_remote_storage_samples_failed_total{job="tempo"}[10m])) or vector(0))
           + (sum(increase(prometheus_remote_storage_samples_dropped_total{job="tempo"}[10m])) or vector(0))
           + (sum(increase(prometheus_remote_storage_exemplars_failed_total{job="tempo"}[10m])) or vector(0)) > 0
-        for: 0m
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "Tempo RED metric remote-write가 sample을 유실함"
+          summary: "Tempo RED metric remote-write가 sample을 이어서 유실함"
 
       - alert: PrometheusRejectingDelayedMetrics
         expr: |
           (sum(increase(prometheus_tsdb_out_of_order_samples_total[10m])) or vector(0))
           + (sum(increase(prometheus_tsdb_too_old_samples_total[10m])) or vector(0))
           + (sum(increase(prometheus_tsdb_out_of_bound_samples_total[10m])) or vector(0)) > 0
-        for: 0m
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "Prometheus가 지연 도착 metric sample을 거부함"
+          summary: "Prometheus가 지연 도착 metric sample을 이어서 거부함"
 
+      # 설정을 적용하지 못한 것은 버스트가 아니라 상태이므로 재기동이 지나갈 만큼만 기다린다.
       - alert: AlloyConfigLoadFailure
         expr: alloy_config_last_load_successful{job="alloy"} != 1 or increase(alloy_config_load_failures_total{job="alloy"}[10m]) > 0
-        for: 0m
+        for: 5m
         labels: { severity: critical }
         annotations:
           summary: "Alloy가 로그 수집 설정을 적용하지 못함"
 
       - alert: AlloyDroppingLogs
-        expr: sum by (reason) (increase(loki_write_dropped_entries_total{job="alloy"}[10m])) > 0
-        for: 0m
+        expr: sum by (reason) (increase(loki_write_dropped_entries_total{job="alloy"}[10m])) > 10
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "Alloy가 Loki 전송 로그를 폐기함: {{ $labels.reason }}"
+          summary: "Alloy가 Loki 전송 로그를 이어서 폐기함: {{ $labels.reason }}"
 
       - alert: LokiDiscardingLogs
-        expr: sum by (reason) (increase(loki_discarded_samples_total[10m])) > 0
-        for: 0m
+        expr: sum by (reason) (increase(loki_discarded_samples_total[10m])) > 10
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "Loki가 로그를 폐기함: {{ $labels.reason }}"
+          summary: "Loki가 로그를 이어서 폐기함: {{ $labels.reason }}"
 
       - alert: AlertDeliveryFailures
-        expr: increase(alertmanager_notifications_failed_total[15m]) > 0
-        for: 0m
+        expr: increase(alertmanager_notifications_failed_total[10m]) > 0
+        for: 15m
         labels: { severity: critical }
         annotations:
-          summary: "Alertmanager 알림 전달 실패"
+          summary: "Alertmanager 알림 전달이 이어서 실패함"
