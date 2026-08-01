@@ -157,7 +157,22 @@ TEMPORAL_UI_PUBLISHED_PORT   GRAFANA_PUBLISHED_PORT      PROMETHEUS_PUBLISHED_PO
 
 ## 계측 오버레이
 
-`--monitoring`은 Grafana만 더하지 않습니다. OpenTelemetry Collector, Tempo, Loki, Alloy, Prometheus, Alertmanager, PostgreSQL·OpenSearch·Kafka·SQL exporter를 함께 올립니다. 기본 보존은 Prometheus 15일, Loki 7일, Tempo 48시간이며 대시보드는 `127.0.0.1:3000`에 열립니다.
+`--monitoring`은 Grafana만 더하지 않습니다. OpenTelemetry Collector, Tempo, Loki, Alloy, Prometheus, Alertmanager, blackbox 프로브, PostgreSQL·OpenSearch·Kafka·SQL exporter를 함께 올립니다. 대시보드는 `127.0.0.1:3000`에 열립니다.
+
+### 보존과 복구
+
+보존 기간은 배포가 정하며 기본값은 개발용입니다.
+
+```text
+PROMETHEUS_RETENTION_TIME    15d     지표
+PROMETHEUS_RETENTION_SIZE    8GB     볼륨이 이 크기를 넘으면 오래된 블록부터 지웁니다
+LOKI_RETENTION_PERIOD        168h    로그
+TEMPO_BLOCK_RETENTION        48h     추적
+```
+
+네 저장소는 모두 로컬 볼륨을 씁니다. 이 구성은 노드가 사라지면 관측 이력도 함께 사라지므로, 운영 배포에서는 object storage 백엔드와 볼륨 백업을 따로 세우고 복구를 정기적으로 확인합니다. 대시보드와 데이터 소스는 `monitoring/grafana/provisioning`이 갖고 있어 Grafana 볼륨이 사라져도 다시 세워집니다.
+
+디스크와 inode 여유는 이 스택이 재지 않습니다. 호스트 지표를 내는 수집기가 없기 때문이며, 운영에서는 그 수집기를 붙여 볼륨 여유를 함께 경보합니다.
 
 ## 저장소 구조
 

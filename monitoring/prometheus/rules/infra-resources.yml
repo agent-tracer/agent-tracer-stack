@@ -23,6 +23,23 @@ groups:
           summary: "event-db replication slot(runtime_ledger) WAL 잔류 1GB 초과"
           description: "Debezium 커넥터가 슬롯을 소비하지 않고 있다. 커넥터 상태를 확인할 것. 계속 방치하면 event-db 디스크가 고갈된다."
 
+      # 지표 저장소가 블록을 합치지 못하면 보존 기간이 지나도 디스크가 줄지 않는다.
+      - alert: PrometheusCompactionFailing
+        expr: increase(prometheus_tsdb_compactions_failed_total[1h]) > 0
+        for: 15m
+        labels: { severity: critical }
+        annotations:
+          summary: "Prometheus가 TSDB 블록을 합치지 못함"
+          description: "보존 기간이 지난 블록이 남아 디스크를 계속 차지한다."
+
+      - alert: PrometheusWalCorrupted
+        expr: increase(prometheus_tsdb_wal_corruptions_total[1h]) > 0
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: "Prometheus WAL이 손상됨"
+          description: "재기동 시 최근 sample을 잃는다. 볼륨의 디스크 여유를 먼저 확인할 것."
+
       - alert: OpenSearchClusterRed
         expr: elasticsearch_cluster_health_status{color="red"} == 1
         for: 1m
