@@ -1,7 +1,8 @@
 collector_name: agent_ai_jobs
 
 metrics:
-  # 식별자는 라벨로 내보내지 않는다. 종류·상태·실행기·백엔드만 운영 차원으로 유지한다.
+  # 식별자는 라벨로 내보내지 않는다. 종류·상태·실행기·축만 운영 차원으로 유지한다.
+  # 축은 원장의 backend 칸이 갖고 값은 ts 와 python 둘뿐이다. 활성 행의 색인이 이 조합을 탄다.
   - metric_name: ai_jobs_status_count
     type: gauge
     help: "pending 또는 running AI 잡 수를 저카디널리티 실행 차원으로 집계한다."
@@ -12,7 +13,7 @@ metrics:
         kind,
         status,
         executor,
-        COALESCE(NULLIF(input ->> 'agentBackend', ''), 'local') AS backend,
+        backend,
         COUNT(*) AS job_count
       FROM ai_jobs
       WHERE status IN ('pending', 'running')
@@ -28,7 +29,7 @@ metrics:
         kind,
         status,
         executor,
-        COALESCE(NULLIF(input ->> 'agentBackend', ''), 'local') AS backend,
+        backend,
         EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MIN(COALESCE(started_at, created_at)))) AS age_seconds
       FROM ai_jobs
       WHERE status IN ('pending', 'running')
@@ -44,7 +45,7 @@ metrics:
         kind,
         status,
         executor,
-        COALESCE(NULLIF(input ->> 'agentBackend', ''), 'local') AS backend,
+        backend,
         COALESCE(SUM(attempts), 0) AS attempts_sum
       FROM ai_jobs
       WHERE status IN ('pending', 'running')
