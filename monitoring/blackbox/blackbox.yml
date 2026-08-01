@@ -1,0 +1,8 @@
+modules:
+  # 게이트웨이는 지표 창구를 열지 않으므로 사용자와 같은 방향에서 응답만 본다.
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      valid_status_codes: []

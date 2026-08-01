@@ -85,6 +85,20 @@ services:
     depends_on:
       loki: { condition: service_started }
 
+  # 사용자가 지나는 경로는 게이트웨이 뒤에서 합쳐지므로 그 앞에서 두드리는 자리를 따로 둔다.
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    command: ["--config.file=/etc/blackbox_exporter/config.yml"]
+    volumes:
+      - ../monitoring/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9115/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+      start_interval: 1s
+
   # ---- 메트릭 저장과 알림 ----
   prometheus:
     image: prom/prometheus:v3.13.0

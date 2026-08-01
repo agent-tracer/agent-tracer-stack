@@ -19,6 +19,13 @@ groups:
         annotations:
           summary: "{{ $labels.service }} 5xx 비율 5% 초과"
 
+      - alert: GatewayPathUnavailable
+        expr: probe_success{job="gateway-probe"} == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations:
+          summary: "사용자 경로 {{ $labels.instance }}가 응답하지 않음"
+
       - alert: TemporalActivityScheduleToStartHigh
         expr: histogram_quantile(0.95, sum by (le) (rate(temporal_activity_schedule_to_start_latency_bucket[5m]))) > 5
         for: 5m

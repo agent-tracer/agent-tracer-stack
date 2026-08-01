@@ -56,6 +56,23 @@ scrape_configs:
       - targets: ["agent-generate-worker:9466"]
         labels: { service: agent-generate-worker }
 
+  # 내부 창구가 모두 정상이어도 라우팅과 자산 전달이 깨질 수 있어 사용자와 같은 방향에서 두드린다.
+  - job_name: gateway-probe
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://gateway:3847/health/ready
+          - http://gateway:3847/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
   - job_name: postgres
     static_configs:
       - targets: ["postgres-exporter-event:9187"]
