@@ -147,7 +147,7 @@ services:
       event-db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3901/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3901/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -163,7 +163,7 @@ services:
       opensearch: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3902/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3902/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -180,6 +180,13 @@ services:
       redpanda: { condition: service_healthy }
       opensearch: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3903/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+      start_interval: 1s
 
   tracer-web:
     image: ${AGENT_TRACER_WEB_IMAGE}
@@ -190,7 +197,11 @@ services:
       - ${GATEWAY_DECLARATIONS:-../gateway/stacks/agent-tracer}/upstreams.d:/etc/nginx/upstreams.d:ro
       - ${GATEWAY_DECLARATIONS:-../gateway/stacks/agent-tracer}/remotes.d:/etc/nginx/remotes.d:ro
     ports: ["${GATEWAY_PUBLISHED_PORT:-127.0.0.1:3847}:3847"]
-    depends_on: [ingest-api, tracer-api, tracer-web]
+    # 상류가 준비되기 전에 여는 게이트웨이는 사용자에게 502를 정상 응답처럼 돌려준다.
+    depends_on:
+      ingest-api: { condition: service_healthy }
+      tracer-api: { condition: service_healthy }
+      tracer-web: { condition: service_started }
 
 volumes:
   event-db-data:
