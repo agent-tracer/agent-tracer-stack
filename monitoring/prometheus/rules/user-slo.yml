@@ -16,12 +16,21 @@ groups:
       - record: user_path:availability:ratio_rate6h
         expr: avg by (instance) (avg_over_time(probe_success{job="gateway-probe"}[6h]))
 
+      # 기동 직후에는 긴 창이 비어 있어 몇 개의 실패가 소진율을 부풀린다. 창이 찬 뒤에 판정한다.
+      - record: user_path:availability:samples_rate1h
+        expr: max by (instance) (count_over_time(probe_success{job="gateway-probe"}[1h]))
+
+      - record: user_path:availability:samples_rate6h
+        expr: max by (instance) (count_over_time(probe_success{job="gateway-probe"}[6h]))
+
       # 14.4배로 태우면 30일 예산이 2일 만에 사라진다.
       - alert: UserPathErrorBudgetBurningFast
         expr: |
           (1 - user_path:availability:ratio_rate5m) > 0.144
           and on (instance)
           (1 - user_path:availability:ratio_rate1h) > 0.144
+          and on (instance)
+          user_path:availability:samples_rate1h >= 192
         for: 2m
         labels: { severity: critical }
         annotations:
@@ -33,6 +42,8 @@ groups:
           (1 - user_path:availability:ratio_rate30m) > 0.06
           and on (instance)
           (1 - user_path:availability:ratio_rate6h) > 0.06
+          and on (instance)
+          user_path:availability:samples_rate6h >= 1152
         for: 15m
         labels: { severity: warning }
         annotations:
