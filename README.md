@@ -151,6 +151,8 @@ CONNECT_PUBLISHED_PORT       OPENSEARCH_PUBLISHED_PORT   TEMPORAL_PUBLISHED_PORT
 TEMPORAL_UI_PUBLISHED_PORT   GRAFANA_PUBLISHED_PORT      PROMETHEUS_PUBLISHED_PORT
 ```
 
+`--monitoring`은 `GRAFANA_ADMIN_PASSWORD`를 요구하며 값이 없으면 합성 단계에서 멈춥니다. 관리자 계정 이름은 `GRAFANA_ADMIN_USER`가 갖고 익명 접근은 열리지 않습니다. 암호는 Grafana 볼륨을 처음 만들 때 반영되므로, 이미 있는 `grafana-data` 볼륨에는 그 볼륨을 지운 뒤 적용됩니다.
+
 공통 데이터베이스 자격 증명은 `POSTGRES_USER`와 `POSTGRES_PASSWORD`가 갖습니다. 에이전트 큐 접두사는 `AGENT_TASK_QUEUE_PREFIX`이며, `compare`에서는 `COMPARE_TS_QUEUE_PREFIX`와 `COMPARE_PYTHON_QUEUE_PREFIX`를 각각 지정합니다. Python 축의 LangSmith 연동은 `LANGSMITH_TRACING`, `LANGSMITH_ENDPOINT`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `LANGSMITH_WORKSPACE_ID`를 사용합니다.
 
 ## 계측 오버레이

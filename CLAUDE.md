@@ -71,6 +71,8 @@ node scripts/down.mjs --stack b
 
 진행 중인 대화 턴이나 워크플로가 남은 상태에서 교체를 실행하지 않습니다. 두 구현체가 같은 원장과 워크플로 이력을 보므로 부팅 복구가 실행을 두 번 되살립니다. `down --volumes`는 모든 데이터 볼륨을 지웁니다.
 
+`--monitoring`은 `GRAFANA_ADMIN_PASSWORD`를 요구하며 값이 없으면 합성 단계에서 멈춥니다. 익명 접근은 열리지 않습니다.
+
 에이전트 Compose 프로파일은 기본적으로 `MONITOR_PROFILE=prd`로 실행됩니다. `--local`은 `ts`와 `compare`에서만 허용하며 TypeScript 축만 사용자 구독 자격으로 바꿉니다. `CLAUDE_CODE_OAUTH_TOKEN`은 chat·jobs·generate 워커만 받고 API는 프로파일만 받습니다. Python 축과 추적 서비스와 게이트웨이의 상류 선택은 바뀌지 않습니다.
 
 ## 변경 규칙

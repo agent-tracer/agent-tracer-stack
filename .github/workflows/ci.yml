@@ -26,6 +26,9 @@ jobs:
           done
 
       - name: 계측 오버레이
+        # 감시 화면의 자격은 배포가 정하므로 검사에서도 값을 준다.
+        env:
+          GRAFANA_ADMIN_PASSWORD: ci-only
         run: node scripts/doctor.mjs --profile ts --monitoring --skip-images
 
       - name: 나란히 선 스택
