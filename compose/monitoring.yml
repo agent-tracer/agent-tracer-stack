@@ -194,8 +194,8 @@ services:
     image: grafana/grafana:13.1.0
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      # 값을 주지 않으면 기동이 아니라 합성에서 멈춘다. 이벤트 본문이 발화와 파일 경로를 담는다.
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?감시 화면의 관리자 암호를 배포가 정한다}
+      # 이벤트 본문이 발화와 파일 경로를 담으므로 배포는 이 값을 덮어쓴다.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
     # 이벤트 본문에 사용자 발화와 파일 경로가 들어갈 수 있어 loopback 에만 연다.
     ports: ["${GRAFANA_PUBLISHED_PORT:-127.0.0.1:3000}:3000"]

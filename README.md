@@ -152,7 +152,7 @@ CONNECT_PUBLISHED_PORT       OPENSEARCH_PUBLISHED_PORT   TEMPORAL_PUBLISHED_PORT
 TEMPORAL_UI_PUBLISHED_PORT   GRAFANA_PUBLISHED_PORT      PROMETHEUS_PUBLISHED_PORT
 ```
 
-`--monitoring`은 `GRAFANA_ADMIN_PASSWORD`를 요구하며 값이 없으면 합성 단계에서 멈춥니다. 관리자 계정 이름은 `GRAFANA_ADMIN_USER`가 갖고 익명 접근은 열리지 않습니다. 암호는 Grafana 볼륨을 처음 만들 때 반영되므로, 이미 있는 `grafana-data` 볼륨에는 그 볼륨을 지운 뒤 적용됩니다.
+`--monitoring`이 세우는 감시 화면의 관리자 계정은 `GRAFANA_ADMIN_USER`와 `GRAFANA_ADMIN_PASSWORD`가 갖고 둘 다 기본값이 `admin`입니다. 배포는 두 값을 모두 정합니다. 익명 접근은 열리지 않습니다. 암호는 Grafana 볼륨을 처음 만들 때 반영되므로, 이미 있는 `grafana-data` 볼륨에는 그 볼륨을 지운 뒤 적용됩니다.
 
 메모리는 세 축이 상한을 갖습니다. 기본값은 개발과 소형 배포용이며, 부하가 큰 자리에서는 올려 잡습니다.
 
