@@ -90,6 +90,7 @@ node scripts/down.mjs --stack b
 - 프로파일을 더하거나 바꾸면 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다.
 - `compare`의 축별 큐 접두사와 축 선택 규칙을 유지합니다.
 - 계측을 바꾸면 Collector·Tempo·Loki·Alloy·Prometheus·Alertmanager와 exporter 의존을 함께 확인합니다.
+- 지표 이름과 라벨은 계측이 내는 것을 그대로 부릅니다. 이름을 옮길 때는 단위와 패널 임계까지 함께 옮깁니다. 이름만 고치면 값이 그려지고 경보와 색은 영영 바뀌지 않습니다.
 - 비밀값과 운영 자격 증명을 기본값으로 확정하지 않습니다.
 - Redpanda의 `mem_limit`을 옮길 때는 `REDPANDA_MEMORY`를 함께 옮깁니다. Seastar가 부팅에 풀을 먼저 잡으므로 상한만 낮추면 기동에서 종료됩니다.
 
