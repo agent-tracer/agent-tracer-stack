@@ -2,7 +2,7 @@
 
 추적 스택과 에이전트 서비스를 함께 띄우는 배포 합성입니다. 서비스 구성, 게이트웨이 상류 선언, 저장소별 이미지 태그 고정, 구현체 교체 절차, 계측 오버레이를 소유합니다. 애플리케이션 소스와 이미지는 각 저장소가 만들고 여기서는 `versions.lock`이 그 태그를 가리킵니다.
 
-추적 스택은 이 저장소 없이도 단독으로 뜹니다. 여기가 필요한 것은 에이전트 서비스를 함께 띄울 때입니다. 에이전트 구현체는 한 프로파일에서 하나만 올라가며 교체해도 데이터베이스와 큐는 그대로 남습니다. `compare`만 두 구현체를 나란히 세우고 큐 접두사를 축마다 나눕니다.
+추적 스택은 이 저장소 없이도 단독으로 뜹니다. 여기가 필요한 것은 에이전트 서비스를 함께 띄울 때입니다. 에이전트 구현체는 한 프로파일에서 하나만 올라가며 교체해도 데이터베이스와 큐는 그대로 남습니다. `compare`만 두 구현체를 나란히 세우고 큐 접두사와 Temporal 네임스페이스를 축마다 나눕니다.
 
 ## 구성
 
@@ -29,8 +29,8 @@ flowchart LR
     Request[API 요청] --> Gateway[Gateway]
     Gateway -->|backend=ts| TS[agent-api-ts :3904]
     Gateway -->|backend=python| Py[agent-api-python :8800]
-    TS --> TSQueue[agent-ts 큐]
-    Py --> PyQueue[agent-python 큐]
+    TS --> TSQueue[agent-ts 큐 · agent-ts 네임스페이스]
+    Py --> PyQueue[agent-python 큐 · agent-python 네임스페이스]
 ```
 
 추적 스택은 `event-db`, `tracer-db`, Redpanda, Debezium Connect, OpenSearch, `ingest-api`, `tracer-api`, `projector`, `tracer-web`, 게이트웨이로 이루어집니다. 에이전트 프로파일은 여기에 `agent-db`, Temporal, 에이전트 API, chat·jobs·generate 워커, 에이전트 화면 리모트를 더합니다.
@@ -97,7 +97,7 @@ node scripts/down.mjs --stack b
 /api/agent/jobs?backend=python
 ```
 
-축이 없는 요청은 어느 구현체도 임의로 고르지 않고 `400 agent_backend_ambiguous`로 거절합니다. 큐 접두사가 축마다 달라 같은 실행을 두 번 가져가지 않으며, 원장은 하나라 두 축의 결과가 한 화면에 함께 쌓입니다.
+축이 없는 요청은 어느 구현체도 임의로 고르지 않고 `400 agent_backend_ambiguous`로 거절합니다. 접수가 자기 축을 원장의 `requested_backend`에 적고 조회가 그 축의 실행만 가져가므로 같은 실행을 두 축이 함께 가져가지 않습니다. 큐 접두사와 Temporal 네임스페이스가 축마다 달라 워크플로도 서로에게 닿지 않으며, 원장은 하나라 두 축의 결과가 한 화면에 함께 쌓입니다.
 
 **진행 중인 대화 턴을 남긴 채 구현체를 교체하거나 `compare`로 들어가지 않습니다.** 두 대화 워커가 같은 원장과 워크플로 이력을 보므로 부팅 복구가 활성 턴을 두 번 되살립니다.
 

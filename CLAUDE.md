@@ -25,7 +25,7 @@
 - `tracer`는 추적 스택만 실행합니다. `/api/agent/*`는 `501`이고 `/agent/*` 화면은 없습니다.
 - `ts`는 TypeScript 에이전트 상류를 씁니다.
 - `python`은 Python 에이전트 상류를 씁니다.
-- `compare`는 두 상류를 함께 세우고 축마다 다른 큐 접두사를 씁니다.
+- `compare`는 두 상류를 함께 세우고 축마다 다른 큐 접두사와 Temporal 네임스페이스를 씁니다.
 
 `compare`에는 기본 축이 없습니다. 요청에 `backend=ts` 또는 `backend=python`을 지정하며, 축이 없는 요청은 `400 agent_backend_ambiguous`를 돌려줍니다.
 
@@ -88,7 +88,8 @@ node scripts/down.mjs --stack b
 - 스크레이프 대상을 더하면 `scripts/stack.mjs`의 `scrapeTargets`에 적습니다. 프로파일이 세우지 않는 파드는 대상이 되지 않습니다.
 - 공개 포트를 더하면 `${…_PUBLISHED_PORT:-기본}` 모양으로 적습니다. 스택이 이 선언에서 기본값을 읽어 옮깁니다.
 - 프로파일을 더하거나 바꾸면 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다.
-- `compare`의 축별 큐 접두사와 축 선택 규칙을 유지합니다.
+- 게이트웨이 프로파일에 상류 이름을 더하면 계약의 `http/agent-api.openapi.yaml`이 선언한 `AgentAxis` enum도 함께 엽니다. `gateway/profiles/*.map`의 이름과 그 enum이 일치해야 접수가 자기 축을 원장에 적을 수 있으며, 두 자리의 정합을 검사하는 장치는 없습니다.
+- `compare`의 축별 큐 접두사와 네임스페이스와 축 선택 규칙을 유지합니다. 두 축이 같은 네임스페이스를 보면 스레드 워크플로 ID가 하나뿐이라 뒤에 신호한 축이 상대 축의 워크플로에 연결됩니다.
 - 계측을 바꾸면 Collector·Tempo·Loki·Alloy·Prometheus·Alertmanager와 exporter 의존을 함께 확인합니다.
 - 지표 이름과 라벨은 계측이 내는 것을 그대로 부릅니다. 이름을 옮길 때는 단위와 패널 임계까지 함께 옮깁니다. 이름만 고치면 값이 그려지고 경보와 색은 영영 바뀌지 않습니다.
 - 비밀값과 운영 자격 증명을 기본값으로 확정하지 않습니다.
