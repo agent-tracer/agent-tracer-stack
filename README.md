@@ -210,7 +210,7 @@ agent-tracer-stack/
 
 ## 컨벤션과 검증
 
-Compose의 앱 이미지 태그는 파일에 직접 쓰지 않고 `versions.lock`이 갖습니다. 프로파일을 더하거나 바꿀 때는 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다. NGINX 상류는 `gateway/profiles/*.map`에 선언하고 생성 산출물인 `gateway/stacks/`와 `monitoring/stacks/`를 직접 고치지 않습니다. `compare`에서 서비스와 큐와 게이트웨이 이름은 축을 분명히 담습니다.
+Compose의 앱 이미지 태그는 파일에 직접 쓰지 않고 `versions.lock`이 갖습니다. 프로파일을 더하거나 바꿀 때는 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다. NGINX 상류는 `gateway/profiles/*.map`에 선언하고 생성 산출물인 `gateway/stacks/`와 `monitoring/stacks/`를 직접 고치지 않습니다. `compare`에서 서비스와 큐와 네임스페이스와 게이트웨이 이름은 축을 분명히 담습니다.
 
 ```bash
 node --test "scripts/**/*.test.mjs"
