@@ -18,19 +18,24 @@ x-agent-depends: &agent-depends
   agent-db: { condition: service_healthy }
   redpanda: { condition: service_healthy }
   temporal: { condition: service_started }
+  temporal-namespace: { condition: service_completed_successfully }
   agent-schema: { condition: service_completed_successfully }
 
-# 접두사가 축마다 달라 두 구현체가 서로 다른 큐를 본다. 같은 실행을 두 번 집지 않는다.
+# 워크플로 ID 는 스레드 하나에 하나뿐이라 두 축이 같은 네임스페이스를 보면 뒤에 신호한 축이
+# 상대 축의 워크플로에 연결된다. 네임스페이스가 축마다 달라 서로에게 도달하지 않는다.
+# 큐 접두사도 축마다 달라 두 구현체가 서로 다른 큐를 본다.
 x-ts-env: &ts-env
   <<: *agent-env
   NODE_ENV: production
   MONITOR_LISTEN_HOST: 0.0.0.0
   AGENT_TASK_QUEUE_PREFIX: ${COMPARE_TS_QUEUE_PREFIX:-agent-ts}
+  TEMPORAL_NAMESPACE: ${COMPARE_TS_NAMESPACE:-agent-ts}
   AGENT_API_URL: http://agent-api-ts:3904
 
 x-python-env: &python-env
   <<: *agent-env
   AGENT_TASK_QUEUE_PREFIX: ${COMPARE_PYTHON_QUEUE_PREFIX:-agent-python}
+  TEMPORAL_NAMESPACE: ${COMPARE_PYTHON_NAMESPACE:-agent-python}
   AGENT_API_URL: http://agent-api-python:8800
   LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
   LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
@@ -47,6 +52,20 @@ x-python-worker-depends: &python-worker-depends
   agent-api-python: { condition: service_healthy }
 
 services:
+  # 서버 이미지는 default 네임스페이스만 세우므로 축의 네임스페이스는 여기서 만든다.
+  temporal-namespace:
+    image: temporalio/admin-tools:1.25.2
+    restart: "no"
+    depends_on:
+      temporal: { condition: service_started }
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        temporal operator namespace create --namespace ${COMPARE_TS_NAMESPACE:-agent-ts} || true;
+        temporal operator namespace create --namespace ${COMPARE_PYTHON_NAMESPACE:-agent-python} || true
+
   # DDL 러너를 가진 구현체가 하나뿐이라 두 축이 같은 스키마를 그 이미지로 받는다.
   agent-schema:
     image: ${TRACER_AGENT_TS_IMAGE}

@@ -170,6 +170,8 @@ CONNECT_MEM_LIMIT          768m
 
 공통 데이터베이스 자격 증명은 `POSTGRES_USER`와 `POSTGRES_PASSWORD`가 갖습니다. 에이전트 큐 접두사는 `AGENT_TASK_QUEUE_PREFIX`이며, `compare`에서는 `COMPARE_TS_QUEUE_PREFIX`와 `COMPARE_PYTHON_QUEUE_PREFIX`를 각각 지정합니다. Python 축의 LangSmith 연동은 `LANGSMITH_TRACING`, `LANGSMITH_ENDPOINT`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `LANGSMITH_WORKSPACE_ID`를 사용합니다.
 
+Temporal 네임스페이스는 `TEMPORAL_NAMESPACE`이며, `compare`에서는 `COMPARE_TS_NAMESPACE`와 `COMPARE_PYTHON_NAMESPACE`가 축마다 다른 값을 줍니다. 기본값은 `agent-ts`와 `agent-python`입니다. 워크플로 ID 는 스레드 하나에 하나뿐이라 두 축이 같은 네임스페이스를 보면 뒤에 신호한 축이 상대 축의 워크플로에 연결되므로, 두 값을 같게 두지 않습니다. 서버 이미지는 `default`만 세우므로 `temporal-namespace` 서비스가 기동 전에 두 네임스페이스를 만들고 API 와 워커가 그것을 기다립니다.
+
 ## 계측 오버레이
 
 스크레이프 대상은 프로파일이 세우는 파드만 담습니다. 목록은 기동이 스택마다 `monitoring/stacks/<프로젝트>/targets`에 놓고 Prometheus가 file 서비스 디스커버리로 읽으므로, 추적 축만 띄운 자리에서 에이전트 파드를 부르지 않습니다. 축을 교체하면 `switch`가 목록을 다시 놓고 Prometheus가 파일을 다시 읽습니다. 계측을 켜고 띄운 스택에서는 `switch`에도 `--monitoring`을 주어야 파드가 계측 없는 정의로 되살아나지 않습니다.
