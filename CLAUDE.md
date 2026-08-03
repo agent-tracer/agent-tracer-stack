@@ -44,6 +44,8 @@ docker build -t tracer-agent-python:latest "$WORKSPACE/tracer-agent/tracer-agent
 cd "$WORKSPACE/agent-tracer-stack"
 ```
 
+참조가 가리키는 이미지가 로컬에 없으면 기동이 멈추고 그 이미지를 만드는 저장소의 이름을 알립니다. 이미지 참조를 더하면 `scripts/stack.mjs`의 `IMAGE_SOURCES`에 만드는 저장소를 함께 적습니다.
+
 배포에서는 `versions.lock`의 `:latest`를 릴리스 태그나 digest로 고정합니다. 태그만으로는 이미지 내용의 불변성을 보장하지 않습니다.
 
 ## 실행과 운영 명령

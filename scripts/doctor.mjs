@@ -7,6 +7,7 @@ import {
     composeArgs,
     composeServices,
     gatewayUpstreamSource,
+    missingImages,
     parseProfile,
     parseStack,
     projectArgs,
@@ -27,6 +28,10 @@ const environment = stackEnv(stack);
 const skipImages = process.argv.includes("--skip-images");
 let failed = 0;
 
+function inspectImage(reference) {
+    return spawnSync("docker", ["image", "inspect", reference], { stdio: "ignore" }).status === 0;
+}
+
 function report(ok, message) {
     console.log(`${ok ? "통과" : "실패"}  ${message}`);
     if (!ok) failed += 1;
@@ -34,10 +39,15 @@ function report(ok, message) {
 
 // 태그가 가리키는 이미지가 실제로 있어야 합성이 뜬다.
 if (!skipImages) {
+    const absent = new Map(missingImages(environment, inspectImage).map((entry) => [entry.key, entry]));
     for (const key of Object.keys(readVersions())) {
-        const reference = environment[key];
-        const found = spawnSync("docker", ["image", "inspect", reference], { stdio: "ignore" }).status === 0;
-        report(found, `${key} = ${reference}`);
+        const missing = absent.get(key);
+        report(
+            missing === undefined,
+            missing === undefined
+                ? `${key} = ${environment[key]}`
+                : `${key} = ${missing.reference} — ${missing.source} 저장소가 만든다`,
+        );
     }
 }
 

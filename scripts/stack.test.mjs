@@ -5,7 +5,10 @@ import {
     composeArgs,
     composeServices,
     gatewayDeclarations,
+    imageSource,
+    missingImages,
     parseStack,
+    readVersions,
     projectArgs,
     PROFILES,
     publishedPorts,
@@ -239,4 +242,28 @@ test("대상 목록이 스택마다 다른 자리에 놓인다", () => {
 
 test("선언되지 않은 프로파일의 대상을 만들지 않는다", () => {
     assert.throws(() => scrapeTargets("없는프로파일"), /알 수 없는 프로파일/);
+});
+
+test("모든 이미지 참조가 만드는 저장소를 갖는다", () => {
+    for (const key of Object.keys(readVersions())) {
+        assert.notEqual(imageSource(key), null, `${key}가 만드는 저장소를 갖지 않는다`);
+    }
+});
+
+test("없는 이미지를 만드는 저장소와 함께 낸다", () => {
+    const environment = stackEnv(null);
+    const absent = missingImages(environment, (reference) => reference !== environment.TRACER_AGENT_TS_IMAGE);
+    assert.deepEqual(absent, [
+        {
+            key: "TRACER_AGENT_TS_IMAGE",
+            reference: environment.TRACER_AGENT_TS_IMAGE,
+            source: "tracer-agent-ts",
+        },
+    ]);
+});
+
+test("나란히 선 스택은 그 스택의 태그를 검사한다", () => {
+    const environment = stackEnv("b");
+    const absent = missingImages(environment, () => false);
+    assert.equal(absent.every(({ reference }) => reference.endsWith("-b")), true);
 });

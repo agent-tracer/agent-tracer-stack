@@ -3,6 +3,7 @@ import {
     applyGatewayProfile,
     applyMonitoringProfile,
     composeArgs,
+    missingImages,
     parseProfile,
     parseStack,
     projectArgs,
@@ -13,6 +14,20 @@ const profile = parseProfile(process.argv, "tracer");
 const stack = parseStack(process.argv);
 const monitoring = process.argv.includes("--monitoring");
 const local = process.argv.includes("--local");
+const environment = stackEnv(stack);
+// 프로파일과 자격 오버레이가 성립하는지는 이미지를 세기 전에 드러나야 한다.
+const files = composeArgs(profile, monitoring, local);
+
+// 이 저장소는 이미지를 만들지 않으므로 없는 참조는 레지스트리 오류가 아니라 만드는 저장소의 이름으로 알린다.
+const absent = missingImages(environment, (reference) =>
+    spawnSync("docker", ["image", "inspect", reference], { stdio: "ignore" }).status === 0,
+);
+if (absent.length > 0) {
+    console.error("로컬에 없는 이미지가 있다. 만드는 저장소에서 빌드한 뒤 다시 실행한다.");
+    for (const { reference, source } of absent) console.error(`  ${reference} — ${source}`);
+    process.exit(1);
+}
+
 applyGatewayProfile(profile, stack);
 applyMonitoringProfile(profile, stack);
 
@@ -21,8 +36,8 @@ const ONE_SHOTS = ["migrate", "connect-init", "redpanda-init"];
 function compose(stdio, ...args) {
     return spawnSync(
         "docker",
-        ["compose", ...projectArgs(stack), ...composeArgs(profile, monitoring, local), ...args],
-        { stdio, env: { ...process.env, ...stackEnv(stack) } },
+        ["compose", ...projectArgs(stack), ...files, ...args],
+        { stdio, env: { ...process.env, ...environment } },
     );
 }
 

@@ -134,6 +134,32 @@ export function gatewayUpstreamSource(profile) {
     return UPSTREAMS[profile] ?? null;
 }
 
+/** 이미지를 만드는 저장소이며 clone 위치는 자리마다 달라도 이 이름은 같다. */
+const IMAGE_SOURCES = {
+    AGENT_TRACER_EVENT_DB_IMAGE: "agent-tracer",
+    AGENT_TRACER_CONNECT_INIT_IMAGE: "agent-tracer",
+    AGENT_TRACER_MIGRATE_IMAGE: "agent-tracer",
+    AGENT_TRACER_INGEST_API_IMAGE: "agent-tracer",
+    AGENT_TRACER_TRACER_API_IMAGE: "agent-tracer",
+    AGENT_TRACER_WEB_IMAGE: "agent-tracer",
+    AGENT_TRACER_GATEWAY_IMAGE: "agent-tracer",
+    TRACER_AGENT_TS_IMAGE: "tracer-agent-ts",
+    TRACER_AGENT_PYTHON_IMAGE: "tracer-agent-python",
+    TRACER_AGENT_WEB_IMAGE: "tracer-agent-web",
+};
+
+/** 이 저장소는 이미지를 만들지 않으므로 없는 이미지를 알릴 때 만드는 저장소를 함께 말한다. */
+export function imageSource(key) {
+    return IMAGE_SOURCES[key] ?? null;
+}
+
+/** 참조가 가리키는 이미지 가운데 로컬에 없는 것을 만드는 저장소와 함께 낸다. */
+export function missingImages(environment, inspect) {
+    return Object.keys(readVersions())
+        .filter((key) => !inspect(environment[key]))
+        .map((key) => ({ key, reference: environment[key], source: imageSource(key) }));
+}
+
 export function readVersions() {
     const text = readFileSync(join(root, "versions.lock"), "utf8");
     const entries = text
