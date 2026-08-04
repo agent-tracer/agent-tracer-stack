@@ -9,8 +9,14 @@ import {
     projectArgs,
     stackEnv,
 } from "./stack.mjs";
+import { loadRunner } from "./profile.runner.mjs";
 
 const profile = parseProfile(process.argv, "tracer");
+
+// 자기 실행체를 갖는 프로파일은 합성도 이미지도 쓰지 않으므로 도커를 부르기 전에 갈라진다.
+const runner = await loadRunner(profile);
+if (runner !== null) process.exit(runner.up());
+
 const stack = parseStack(process.argv);
 const monitoring = process.argv.includes("--monitoring");
 const local = process.argv.includes("--local");

@@ -18,6 +18,7 @@ import {
     upstreamFallback,
     upstreamNames,
 } from "./stack.mjs";
+import { loadRunner } from "./profile.runner.mjs";
 
 const profile = parseProfile(process.argv, "tracer");
 const stack = parseStack(process.argv);
@@ -35,6 +36,13 @@ function inspectImage(reference) {
 function report(ok, message) {
     console.log(`${ok ? "통과" : "실패"}  ${message}`);
     if (!ok) failed += 1;
+}
+
+// 자기 실행체를 갖는 프로파일은 도커도 이미지도 보지 않으므로 검사 목록 자체가 다르다.
+const runner = await loadRunner(profile);
+if (runner !== null) {
+    runner.doctor(report);
+    process.exit(failed > 0 ? 1 : 0);
 }
 
 // 태그가 가리키는 이미지가 실제로 있어야 합성이 뜬다.

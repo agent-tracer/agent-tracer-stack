@@ -90,6 +90,7 @@ node scripts/down.mjs --stack b
 - 스크레이프 대상을 더하면 `scripts/stack.mjs`의 `scrapeTargets`에 적습니다. 프로파일이 세우지 않는 파드는 대상이 되지 않습니다.
 - 공개 포트를 더하면 `${…_PUBLISHED_PORT:-기본}` 모양으로 적습니다. 스택이 이 선언에서 기본값을 읽어 옮깁니다.
 - 프로파일을 더하거나 바꾸면 `scripts/stack.mjs`의 합성 목록과 상류 선택을 함께 갱신합니다.
+- 합성을 쓰지 않는 프로파일은 `scripts/profiles/<이름>.mjs`가 실행체를 갖습니다. 기동과 종료와 진단이 도커를 부르기 전에 그 모듈을 찾아 `up()`과 `down(purge)`와 `doctor(report)`에 넘기므로, 이런 프로파일은 `PROFILES`에 적지 않습니다.
 - 게이트웨이 프로파일에 상류 이름을 더하면 계약의 `http/agent-api.openapi.yaml`이 선언한 `AgentAxis` enum도 함께 엽니다. `gateway/profiles/*.map`의 이름과 그 enum이 일치해야 접수가 자기 축을 원장에 적을 수 있으며, 두 자리의 정합을 검사하는 장치는 없습니다.
 - `compare`의 축별 큐 접두사와 네임스페이스와 축 선택 규칙을 유지합니다. 두 축이 같은 네임스페이스를 보면 스레드 워크플로 ID가 하나뿐이라 뒤에 신호한 축이 상대 축의 워크플로에 연결됩니다.
 - 계측을 바꾸면 Collector·Tempo·Loki·Alloy·Prometheus·Alertmanager와 exporter 의존을 함께 확인합니다.
