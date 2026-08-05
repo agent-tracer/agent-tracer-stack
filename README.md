@@ -112,6 +112,19 @@ node scripts/up.mjs --profile compare --local
 
 토큰은 Claude CLI를 하위 프로세스로 실행하는 chat·jobs·generate 워커만 받습니다. 접수와 검증만 하는 API는 프로파일만 받고, Python 축과 추적 서비스와 게이트웨이는 그대로입니다. `compare --local`에서도 요청은 `backend`를 지정해야 하며 지정하지 않으면 `400 agent_backend_ambiguous`입니다.
 
+### 수집원 연결
+
+이 스택은 수집 창구를 열 뿐 이벤트를 만들지 않습니다. Claude Code의 실행 기록을 채우려면 `agent-tracer`가 소유한 플러그인을 Claude Code에 붙입니다.
+
+```text
+/plugin marketplace add agent-tracer/agent-tracer
+/plugin install agent-tracer-monitor@agent-tracer
+```
+
+플러그인의 기본 주소가 `http://127.0.0.1:3847`이라 이름 없는 스택에서는 따로 설정하지 않습니다. `--stack b`나 `GATEWAY_PUBLISHED_PORT`로 게이트웨이를 옮겼으면 플러그인의 `MONITOR_BASE_URL`도 그 주소로 함께 옮깁니다. 옮기지 않으면 훅은 조용히 이름 없는 스택으로 계속 보냅니다. 절차와 설정 순서의 정본은 [agent-tracer README](https://github.com/agent-tracer/agent-tracer#claude-code-플러그인-설치)입니다.
+
+대시보드가 비어 있으면 스택보다 이 연결을 먼저 봅니다. 프로파일과 게이트웨이 헬스가 모두 정상이어도 붙은 수집원이 없으면 원장에 아무것도 들어오지 않습니다.
+
 ## 포트
 
 | 주소 | 용도 | 프로파일 |
